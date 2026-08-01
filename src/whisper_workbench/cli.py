@@ -161,11 +161,13 @@ def cmd_format(args: argparse.Namespace) -> int:
 def cmd_doctor(args: argparse.Namespace) -> int:
     ffmpeg = shutil.which("ffmpeg")
     whisper_cli = assets.find_whisper_cli()
-    model = assets.find_model()
+    # Report every variant, not just the default: a machine set up before the
+    # default changed still has a perfectly usable model.
+    models = {variant: assets.find_model(variant) for variant in assets.MODEL_CHOICES}
     vad_model = assets.find_vad_model()
     backends = llm.available_backends()
 
-    can_transcribe = bool(whisper_cli and model)
+    can_transcribe = bool(whisper_cli and any(models.values()))
     can_format = bool(backends)
 
     if args.json:
@@ -174,7 +176,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 "command": "doctor",
                 "ffmpeg": ffmpeg,
                 "whisper_cli": str(whisper_cli) if whisper_cli else None,
-                "model": str(model) if model else None,
+                "models": {
+                    variant: str(path) if path else None
+                    for variant, path in models.items()
+                },
                 "vad_model": str(vad_model) if vad_model else None,
                 "llm_backends": backends,
                 "install_dir": str(assets.install_dir()),
@@ -188,12 +193,17 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
         print(f"ffmpeg       {status(ffmpeg)}")
         print(f"whisper-cli  {status(whisper_cli)}")
-        print(f"模型          {status(model)}")
+        for variant, path in models.items():
+            default_mark = " (默认)" if variant == assets.DEFAULT_MODEL else ""
+            print(f"模型 {variant}{default_mark}  {status(path)}")
         print(f"VAD 模型      {status(vad_model)}")
         print(f"LLM CLI      {', '.join(backends) if backends else '缺失'}")
         print(f"安装目录      {assets.install_dir()}")
         print()
         print(f"wb transcribe  {'可用' if can_transcribe else '不可用 —— 跑 wb setup'}")
+        if can_transcribe and models[assets.DEFAULT_MODEL] is None:
+            usable = next(v for v, p in models.items() if p)
+            print(f"               默认模型不在，转录时加 -m {usable}")
         print(
             f"wb format      "
             f"{'可用' if can_format else '不可用 —— 需要 gemini/claude/codex 之一在 PATH 上'}"
