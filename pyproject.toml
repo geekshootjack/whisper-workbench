@@ -1,37 +1,43 @@
-[build-system]
-requires = ["hatchling>=1.24.2"]
-build-backend = "hatchling.build"
-
 [project]
 name = "whisper-workbench"
-version = "0.1.0"
-description = "Python wrapper scripts for whisper.cpp transcription"
+dynamic = ["version"]
+description = "Turn meeting recordings into a corrected, readable transcript document"
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "autocorrect-py",
-]
+requires-python = ">=3.10"
+dependencies = []
 
-[project.optional-dependencies]
+[project.scripts]
+wb = "whisper_workbench.cli:main"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+# The repo carries legacy date-based tags (release-2026-03-11, ...) that would
+# otherwise be parsed as versions. Only vX.Y.Z tags count.
+[tool.hatch.version.raw-options]
+git_describe_command = ["git", "describe", "--dirty", "--tags", "--long", "--match", "v*"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/whisper_workbench"]
+
+[dependency-groups]
 dev = [
+    "pytest",
     "ruff",
 ]
 
-[project.scripts]
-main = "main:main"
-wb-setup = "scripts.setup_whisper_cpp:main"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src", "scripts"]
-include = ["main.py"]
-
 [tool.ruff]
-line-length = 88
+line-length = 100
+
+[tool.ruff.lint]
+extend-select = ["UP"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
-[tool.ruff.lint]
-extend-select = [
-    "UP",
-]
+[tool.pytest.ini_options]
+testpaths = ["tests"]

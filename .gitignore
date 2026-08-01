@@ -9,3 +9,4 @@ usage/
 .venv
 test.ipynb
 vendor/
+data/
