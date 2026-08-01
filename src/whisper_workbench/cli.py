@@ -9,9 +9,11 @@ subcommand names.
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import logging
 import shutil
+import socket
 import sys
 from pathlib import Path
 
@@ -28,7 +30,7 @@ EPILOG = """\
   第一步 转录（需要 whisper.cpp，不联网、不调用 LLM）
       wb transcribe meeting.m4a          ->  meeting.txt
 
-  第二步 整理（需要 gemini / claude / codex 之一在 PATH 上）
+  第二步 整理（需要 claude 或 codex 在 PATH 上）
       wb format meeting.txt              ->  meeting.corrected.txt   校正后的逐行转录
                                              meeting.md              分段正文文档
 
@@ -41,6 +43,37 @@ EPILOG = """\
 
 def _print_json(payload: dict[str, object]) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def _scp_source(path: Path) -> str:
+    """Build the remote half of an scp command pointing at ``path`` here.
+
+    The workflow assumes transcription and formatting happen on different
+    machines, so the completion message hands over a command that can be
+    pasted on the *other* machine to pull the transcript across.
+    """
+    host = socket.gethostname()
+    # A bare hostname is not resolvable from another machine; the mDNS name is.
+    if "." not in host and sys.platform == "darwin":
+        host = f"{host}.local"
+
+    text = path.as_posix()
+    spec = f"{getpass.getuser()}@{host}:{text}"
+    if any(char in text for char in " '\"()"):
+        escaped = text.replace("\\", "\\\\").replace(" ", "\\ ")
+        spec = f"'{getpass.getuser()}@{host}:{escaped}'"
+    return spec
+
+
+def _print_next_steps(txt_paths: list[Path]) -> None:
+    joined = " ".join(str(path) for path in txt_paths)
+    print(f"\n下一步：wb format {joined}")
+
+    sources = " ".join(_scp_source(path) for path in txt_paths)
+    names = " ".join(path.name for path in txt_paths)
+    print("\n在另一台机器上处理，先拉过去：")
+    print(f"  scp {sources} .")
+    print(f"  wb format {names}")
 
 
 def _read_text_file(path: Path, label: str) -> str:
@@ -112,7 +145,7 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
         print(f"✓ {result.txt}  ({line_count} 行)")
         if result.srt:
             print(f"  {result.srt}")
-    print(f"\n下一步：wb format {results[0].txt}")
+    _print_next_steps([result.txt for result in results])
     return 0
 
 
@@ -206,7 +239,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             print(f"               默认模型不在，转录时加 -m {usable}")
         print(
             f"wb format      "
-            f"{'可用' if can_format else '不可用 —— 需要 gemini/claude/codex 之一在 PATH 上'}"
+            f"{'可用' if can_format else '不可用 —— 需要 claude 或 codex 在 PATH 上'}"
         )
 
     return 0 if (can_transcribe or can_format) else 1

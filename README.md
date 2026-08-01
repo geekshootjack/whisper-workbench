@@ -38,7 +38,7 @@ wb setup      # 编译 whisper.cpp、下载模型，只需跑一次
 
 如果已经用别的方式装了 whisper.cpp（比如 macOS 上 `brew install whisper-cpp`），`wb setup` 可以跳过——`whisper-cli` 在 PATH 上就会被直接使用。
 
-后处理那台机器需要 `gemini`、`claude` 或 `codex` 其中之一在 PATH 上。
+后处理那台机器需要 `claude` 或 `codex` 其中之一在 PATH 上。
 
 不确定这台机器能跑哪一步：
 

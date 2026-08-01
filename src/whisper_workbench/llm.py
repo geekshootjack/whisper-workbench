@@ -16,8 +16,8 @@ from typing import Any
 
 LOG = logging.getLogger(__name__)
 
-BACKENDS = ("gemini", "claude", "codex")
-DEFAULT_BACKEND = "gemini"
+BACKENDS = ("claude", "codex")
+DEFAULT_BACKEND = "claude"
 DEFAULT_TIMEOUT_SEC = 300
 
 
@@ -35,12 +35,6 @@ def _summarize_cli_error(stderr: bytes | str | None) -> str:
         return "(no stderr output)"
     preview = "\n".join(lines[:8])
     return preview + "\n..." if len(lines) > 8 else preview
-
-
-def _default_model_for(backend: str) -> str | None:
-    if backend == "claude":
-        return "haiku"
-    return None
 
 
 def available_backends() -> list[str]:
@@ -88,16 +82,6 @@ def _run(cmd: list[str], prompt: str, timeout_sec: int, backend: str) -> subproc
         ) from exc
 
 
-def _call_gemini(prompt: str, model: str | None, timeout_sec: int) -> str:
-    cmd = ["gemini", "--prompt", "", "--output-format", "text"]
-    if model:
-        cmd.extend(["--model", model])
-    result = _run(cmd, prompt, timeout_sec, "gemini")
-    if result.returncode != 0:
-        raise RuntimeError(f"gemini failed: {_summarize_cli_error(result.stderr)}")
-    return _decode(result.stdout).strip()
-
-
 def _call_claude(prompt: str, model: str | None, timeout_sec: int) -> str:
     cmd = ["claude", "--print", "--no-session-persistence"]
     if model:
@@ -139,14 +123,16 @@ def _call_codex(prompt: str, model: str | None, timeout_sec: int) -> str:
 
 
 def call(prompt: str, *, backend: str, model: str | None, timeout_sec: int) -> str:
-    """Send a prompt to one LLM CLI and return its raw text response."""
-    effective_model = model or _default_model_for(backend)
-    if backend == "gemini":
-        return _call_gemini(prompt, effective_model, timeout_sec)
+    """Send a prompt to one LLM CLI and return its raw text response.
+
+    With no ``model`` the CLI's own configured default applies. Pinning a
+    cheap model here would silently cap the quality of the rewrite stage,
+    which is the whole point of the tool.
+    """
     if backend == "claude":
-        return _call_claude(prompt, effective_model, timeout_sec)
+        return _call_claude(prompt, model, timeout_sec)
     if backend == "codex":
-        return _call_codex(prompt, effective_model, timeout_sec)
+        return _call_codex(prompt, model, timeout_sec)
     raise ValueError(f"Unsupported llm backend: {backend}")
 
 

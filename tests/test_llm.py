@@ -8,22 +8,22 @@ from whisper_workbench import llm
 
 
 def test_requested_backend_comes_first_when_installed(monkeypatch) -> None:
-    monkeypatch.setattr(llm, "available_backends", lambda: ["gemini", "claude"])
+    monkeypatch.setattr(llm, "available_backends", lambda: ["claude", "codex"])
 
-    assert llm.ordered_backends("claude") == ["claude", "gemini"]
+    assert llm.ordered_backends("codex") == ["codex", "claude"]
 
 
 def test_uninstalled_backends_are_not_attempted(monkeypatch) -> None:
     monkeypatch.setattr(llm, "available_backends", lambda: ["claude"])
 
-    assert llm.ordered_backends("gemini") == ["claude"]
+    assert llm.ordered_backends("codex") == ["claude"]
 
 
 def test_no_installed_backend_fails_with_an_actionable_message(monkeypatch) -> None:
     monkeypatch.setattr(llm, "available_backends", lambda: [])
 
     with pytest.raises(RuntimeError, match="No LLM CLI found"):
-        llm.ordered_backends("gemini")
+        llm.ordered_backends("claude")
 
 
 def test_available_backends_are_a_subset_in_declared_order() -> None:
