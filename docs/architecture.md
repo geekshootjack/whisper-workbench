@@ -1,116 +1,77 @@
 # Architecture
 
-## Entry Points
+One CLI, `wb`, over a two-stage workflow that is deliberately splittable
+across machines.
 
-- `main.py`: unified CLI entry point
-- `wb-setup`: setup helper exposed from `scripts/setup_whisper_cpp.py`
-
-The main CLI exposes five subcommands:
-
-- `transcribe`
-- `postprocess`
-- `convert`
-- `batch`
-- `doctor`
-
-## Core Modules
-
-### `src/transcription_backends.py`
-
-Defines the local `whisper.cpp` backend and the Groq backend behind a shared request model.
-
-- Local backend shells out to `whisper-cli`
-- Groq backend uses stdlib HTTP calls
-- Both return timed transcript segments that feed downstream rendering and postprocess
-
-### `src/whisper_utils.py`
-
-Shared environment and execution helpers:
-
-- resolve binary and model paths
-- convert media to 16 kHz mono WAV
-- run local whisper commands
-- run autocorrect helpers
-
-### `src/srt_utils.py`
-
-Subtitle text and timing helpers:
-
-- parse and write SRT/TXT pairs
-- split subtitle lines on punctuation
-- redistribute timestamps after splitting
-- preserve 1:1 TXT-to-SRT alignment where required
-
-### `src/postprocess.py`
-
-Owns the ordered postprocess pipeline and any step orchestration between subtitle text files.
-
-### `src/llm_correct.py`
-
-Runs optional line-preserving correction through external LLM CLIs such as Gemini, Claude, or Codex.
-
-## Pipeline
-
-High-level flow:
-
-1. Load media input and backend configuration
-2. Transcribe via local `whisper.cpp` or Groq
-3. Write initial `.srt` and `.txt`
-4. Optionally run postprocess steps
-5. Emit final subtitle artifacts
-
-## Postprocess Order
-
-The order is intentional and should not be casually changed:
-
-1. `split` via `--split-on-punc`
-2. `llm_correct_txt` via `--llm-correct`
-3. `sync_txt_to_srt`
-4. `autocorrect`
-
-Key invariant:
-
-- TXT and SRT must stay line-aligned whenever a text-sync step expects 1:1 correspondence
-
-## Backend Notes
-
-Local backend:
-
-- optimized for offline or private workflows
-- depends on `whisper.cpp`, model files, and optionally VAD models
-- can disable VAD for more faithful subtitle timing
-
-Groq backend:
-
-- avoids local model setup
-- requires `GROQ_API_KEY`
-- sends the original input file to the Groq API
-
-## Repository Layout
-
-```text
-whisper-workbench/
-├── AGENTS.md
-├── README.md
-├── docs/
-│   ├── README.md
-│   ├── architecture.md
-│   ├── cli.md
-│   └── plans/
-│       └── README.md
-├── main.py
-├── scripts/
-├── src/
-├── tests/
-├── usage/
-└── tasks/
-    └── lessons.md
+```
+audio ──▶ wb transcribe ──▶ meeting.txt ──▶ wb format ──▶ meeting.corrected.txt
+          (whisper.cpp)     one line per                  meeting.md
+                            speech segment
 ```
 
-## Documentation Ownership
+`wb transcribe` never invokes an LLM and never touches the network;
+`wb format` never touches audio. The handoff between them is a single `.txt`
+file, which is what lets transcription run on a machine with whisper.cpp
+while post-processing runs somewhere with an LLM CLI.
 
-- Root `README.md`: short human-facing TLDR only
-- `docs/cli.md`: operational usage details and flags
-- `docs/architecture.md`: implementation map and invariants
-- `AGENTS.md`: canonical agentic development process
-- `docs/plans/*.md`: reviewed implementation plans for non-trivial issues
+## Modules
+
+| Module | Responsibility |
+| --- | --- |
+| `cli.py` | argparse surface and the human/JSON output. |
+| `assets.py` | The one place that resolves whisper-cli, model, and VAD model paths. |
+| `setup_whisper.py` | `wb setup`: clone, build, download into the user data dir. |
+| `transcribe.py` | ffmpeg normalization plus the whisper-cli invocation. |
+| `llm.py` | Subprocess plumbing shared by both post-processing stages. |
+| `correct.py` | Stage 1. Line-preserving error correction. |
+| `compose.py` | Stage 2. Prose rewrite. |
+| `pipeline.py` | Output path derivation and stage sequencing for `wb format`. |
+
+## Why the two post-processing stages differ
+
+They have opposite contracts, which is why they cannot be one pass.
+
+**Correction** must preserve structure: N lines in, N lines out, same order.
+The model is asked for a *patch* — only the lines it wants to change, keyed by
+id — rather than a rewritten document. A confused or truncated response can
+therefore fail to correct something, but it cannot drop, merge, or reorder
+transcript lines. Chunks run concurrently because they are independent.
+
+**Composition** must break structure: recognition segments are neither
+sentences nor paragraphs. Chunks run *sequentially*, each one receiving the
+tail of the previous chunk's output as read-only context, so paragraphs
+continue across a seam instead of restarting. The prompt asks for tidy-up, not
+summarization, and a large drop in character count is logged as a warning
+because it usually means the model summarized anyway.
+
+Model output also passes a deterministic guard that demotes stray markdown
+headings and drops horizontal rules. LLM CLIs do not reliably obey "no
+headings", and enforcing it in code is free.
+
+## Failure behavior
+
+Neither stage is allowed to lose the transcript.
+
+- A correction chunk that fails is retried as smaller sub-chunks, then falls
+  back to the original lines.
+- A compose chunk that fails on every available backend falls back to emitting
+  its input lines verbatim.
+- Both stages report `applied` / `partial` / `failed`, surfaced in the
+  `--json` output and in the human summary.
+- Backends not present on `PATH` are filtered out before any work starts, so
+  requesting an uninstalled CLI does not burn a full pass over every chunk.
+
+## Asset resolution
+
+`assets.py` resolves in this order, and both `wb setup` and `wb transcribe`
+go through it so their defaults cannot drift apart:
+
+1. `WHISPER_CLI_PATH` / `WHISPER_MODEL_PATH` / `WHISPER_VAD_MODEL_PATH`
+2. `whisper-cli` on `PATH` (covers `brew install whisper-cpp`)
+3. the user data dir — `~/.local/share/whisper-workbench/` or
+   `%LOCALAPPDATA%\whisper-workbench\` — which is where `wb setup` installs
+4. `<repo>/vendor/whisper.cpp`, only when running from a source checkout
+
+Installing into the user data dir rather than next to the source is what makes
+`uv tool install` viable: a `__file__`-relative path would put a git clone and
+multi-GB models inside `site-packages`.

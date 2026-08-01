@@ -1,51 +1,85 @@
 # whisper-workbench
 
-`whisper-workbench` is a subtitle-oriented transcription toolkit that wraps local `whisper.cpp` and the Groq Whisper API behind one CLI.
+把会议录音变成一份校正过、分好段的文档，用来喂给 agent 当上下文。
 
-It is built for practical media workflows:
+分两步，两步可以在不同机器上跑：
 
-- transcribe audio or video into `.srt` and `.txt`
-- switch between local and Groq backends
-- run optional punctuation splitting, LLM correction, and autocorrect
-- keep setup and operator commands simple enough for repeated editorial use
-
-## TL;DR
-
-Install dependencies:
-
-```bash
-uv sync
-uv run wb-setup
+```
+wb transcribe meeting.m4a     ->  meeting.txt              本地 whisper.cpp，不联网
+wb format meeting.txt         ->  meeting.corrected.txt    LLM 按行校正识别错误
+                                  meeting.md               LLM 改写成分段正文
 ```
 
-Run a local transcription:
+两步之间只需要传 `meeting.txt` 这一个文件。
 
-```bash
-uv run main transcribe -i input.mp4 -o ./output -l zh
+改写是整理，不是摘要：去掉口水话、合并被切碎的短句、按话题分段，但每一个论点、数据和结论都保留。校正稿会留在磁盘上，所以原始表述永远只隔一个文件。
+
+## 安装
+
+```sh
+uv tool install git+https://github.com/thomjiji/whisper-workbench            # 跟随 main
+uv tool install git+https://github.com/thomjiji/whisper-workbench@v0.1.0     # 锁定版本
+uv tool upgrade whisper-workbench
 ```
 
-Use Groq instead:
+一次性使用：
 
-```bash
-uv run main transcribe -i input.mp4 -o ./output -l zh --backend groq
+```sh
+uvx --from git+https://github.com/thomjiji/whisper-workbench wb transcribe meeting.m4a
 ```
 
-If subtitle timing matters more than silence trimming:
+## 每台机器第一次使用
 
-```bash
-uv run main transcribe -i input.mp4 -o ./output -l zh --backend local --no-vad
+转录那台机器需要 `ffmpeg`、`git`、`cmake` 和一个 C++ 编译器，然后：
+
+```sh
+wb setup      # 编译 whisper.cpp、下载模型，只需跑一次
 ```
 
-## Docs
+如果已经用别的方式装了 whisper.cpp（比如 macOS 上 `brew install whisper-cpp`），`wb setup` 可以跳过——`whisper-cli` 在 PATH 上就会被直接使用。
 
-- [Docs Index](./docs/README.md)
-- [CLI Guide](./docs/cli.md)
-- [Architecture](./docs/architecture.md)
-- [Agentic Dev Process](./AGENTS.md)
+后处理那台机器需要 `gemini`、`claude` 或 `codex` 其中之一在 PATH 上。
 
-## Project Tracking
+不确定这台机器能跑哪一步：
 
-Planning now lives in GitHub Issues, Milestones, and the `whisper-workbench` GitHub Project. Local markdown backlogs were intentionally removed.
+```sh
+wb doctor
+```
+
+## 常用
+
+```sh
+wb transcribe a.m4a b.m4a -o ./out      # 多个文件，指定输出目录
+wb transcribe meeting.m4a --srt         # 顺带出一份字幕
+wb transcribe meeting.m4a --no-vad      # 关掉静音跳过，保证时间轴连续
+
+wb format meeting.txt -g glossary.txt   # 带专有名词表校正
+wb format meeting.txt --from compose    # 复用已有校正稿，只重跑改写
+wb format meeting.txt --backend claude  # 指定用哪个 LLM CLI
+wb format meeting.txt --json            # 机器可读的结果路径与状态
+```
+
+完整参数看 `wb --help` 和 `wb <命令> --help`。
+
+## 环境变量
+
+| 变量 | 作用 |
+| --- | --- |
+| `WHISPER_CLI_PATH` | 指定 whisper-cli 可执行文件 |
+| `WHISPER_MODEL_PATH` | 指定 ggml 模型文件 |
+| `WHISPER_VAD_MODEL_PATH` | 指定 VAD 模型文件 |
+
+## 开发
+
+```sh
+git clone https://github.com/thomjiji/whisper-workbench
+cd whisper-workbench
+uv sync --all-groups
+uv run wb --help
+uv run pytest
+```
+
+架构说明见 [docs/architecture.md](./docs/architecture.md)，协作流程见 [AGENTS.md](./AGENTS.md)。
 
 ## License
 

@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # hatch-vcs derives the version from git tags; fetch full history
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+      - run: uv build
+      - uses: softprops/action-gh-release@v2
+        with:
+          # uv build drops a .gitignore into dist/; match only the artifacts
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          generate_release_notes: true
