@@ -186,7 +186,7 @@ def cmd_format(args: argparse.Namespace) -> int:
         backend=args.backend,
         model=args.model,
         timeout_sec=args.timeout,
-        chunk_lines=args.chunk_lines,
+        max_chars=args.max_chars,
         start_stage=args.start_stage,
     )
 
@@ -368,10 +368,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="从哪一步开始。compose 会复用已有的 .corrected.txt，跳过校正",
     )
     format_parser.add_argument(
-        "--chunk-lines",
+        "--max-chars",
         type=int,
-        default=compose.CHUNK_LINES,
-        help=f"改写阶段每块多少行（默认 {compose.CHUNK_LINES}）",
+        default=compose.MAX_CHARS,
+        help=(
+            f"改写阶段单次调用的字数上限（默认 {compose.MAX_CHARS}）。"
+            "超过才会分块，分块可能让跨块的话题被写两遍"
+        ),
     )
     output_group = format_parser.add_mutually_exclusive_group()
     output_group.add_argument(

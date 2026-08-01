@@ -55,7 +55,7 @@ def format_transcript(
     backend: str = llm.DEFAULT_BACKEND,
     model: str | None = None,
     timeout_sec: int = llm.DEFAULT_TIMEOUT_SEC,
-    chunk_lines: int = compose.CHUNK_LINES,
+    max_chars: int = compose.MAX_CHARS,
     start_stage: str = "correct",
 ) -> FormatResult:
     """Run the correct -> compose pipeline over a raw transcript."""
@@ -97,7 +97,7 @@ def format_transcript(
         backend=backend,
         model=model,
         timeout_sec=timeout_sec,
-        chunk_lines=chunk_lines,
+        max_chars=max_chars,
     )
     document_path.parent.mkdir(parents=True, exist_ok=True)
     document_path.write_text(document, encoding="utf-8")

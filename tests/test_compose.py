@@ -55,7 +55,7 @@ def test_all_chunks_failing_falls_back_to_the_raw_transcript(monkeypatch) -> Non
     monkeypatch.setattr(compose, "_compose_chunk", lambda *a, **k: None)
 
     lines = ["第一句话", "第二句话", "第三句话"]
-    document, status = compose.compose_document(lines, chunk_lines=2)
+    document, status = compose.compose_document(lines, max_chars=8)
 
     assert status == "failed"
     # Nothing is lost even when every backend is unreachable.
@@ -72,7 +72,8 @@ def test_partial_failure_is_reported_as_partial(monkeypatch) -> None:
 
     monkeypatch.setattr(compose, "_compose_chunk", fake_chunk)
 
-    document, status = compose.compose_document(["甲", "乙", "丙", "丁"], chunk_lines=2)
+    # 4 chars of budget fits two 1-char lines per chunk, so this splits in two.
+    document, status = compose.compose_document(["甲", "乙", "丙", "丁"], max_chars=4)
 
     assert status == "partial"
     assert "甲" in document
@@ -87,7 +88,7 @@ def test_preceding_context_is_the_tail_of_the_previous_output(monkeypatch) -> No
         return f"整理:{chunk[0]}"
 
     monkeypatch.setattr(compose, "_compose_chunk", fake_chunk)
-    compose.compose_document(["甲", "乙", "丙"], chunk_lines=1)
+    compose.compose_document(["甲", "乙", "丙"], max_chars=1)
 
     assert seen[0] is None
     assert seen[1] == "整理:甲"
@@ -108,7 +109,7 @@ def test_normalize_keeps_paragraph_breaks() -> None:
 def test_document_is_normalized_before_being_returned(monkeypatch) -> None:
     monkeypatch.setattr(compose, "_compose_chunk", lambda *a, **k: "预算是300万.")
 
-    document, status = compose.compose_document(["甲"], chunk_lines=1)
+    document, status = compose.compose_document(["甲"], max_chars=1)
 
     assert status == "applied"
     assert document == "预算是 300 万。\n"
@@ -117,7 +118,36 @@ def test_document_is_normalized_before_being_returned(monkeypatch) -> None:
 def test_raw_fallback_lines_are_normalized_too(monkeypatch) -> None:
     monkeypatch.setattr(compose, "_compose_chunk", lambda *a, **k: None)
 
-    document, status = compose.compose_document(["预算是300万."], chunk_lines=1)
+    document, status = compose.compose_document(["预算是300万."], max_chars=1)
 
     assert status == "failed"
     assert "预算是 300 万。" in document
+
+
+def test_a_realistic_transcript_is_one_call() -> None:
+    # 938 lines of ~15 chars is a real meeting transcript; it must not split.
+    lines = ["这是一句会议里的话大概十五个字" for _ in range(938)]
+
+    assert len(compose._split_by_chars(lines, compose.MAX_CHARS)) == 1
+
+
+def test_splitting_counts_characters_not_lines() -> None:
+    short = ["甲"] * 100
+    long = ["这是一句很长的话" * 10] * 100
+
+    # Same line count, wildly different size: only the big one splits.
+    assert len(compose._split_by_chars(short, 1000)) == 1
+    assert len(compose._split_by_chars(long, 1000)) > 1
+
+
+def test_split_never_drops_a_line() -> None:
+    lines = [f"第{i}句" for i in range(50)]
+    chunks = compose._split_by_chars(lines, 10)
+
+    assert [line for chunk in chunks for line in chunk] == lines
+
+
+def test_a_line_longer_than_the_budget_still_gets_its_own_chunk() -> None:
+    chunks = compose._split_by_chars(["短", "特别长" * 100, "短"], 10)
+
+    assert [line for chunk in chunks for line in chunk] == ["短", "特别长" * 100, "短"]

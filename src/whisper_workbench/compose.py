@@ -24,7 +24,11 @@ from whisper_workbench import llm
 
 LOG = logging.getLogger(__name__)
 
-CHUNK_LINES = 300
+# Minutes need the whole arc of a topic — the conclusion often lands far
+# after the topic opens — so the default is a single call over the entire
+# transcript. Splitting is a fallback for transcripts that genuinely do not
+# fit, not the normal path: a three-hour meeting runs around 40k characters.
+MAX_CHARS = 60_000
 CONTEXT_TAIL_CHARS = 400
 # Minutes legitimately run a fraction of the transcript's length, so this is
 # only a floor for "a whole stretch of the meeting went missing", not a
@@ -131,27 +135,54 @@ def _compose_chunk(
     return None
 
 
+def _split_by_chars(lines: list[str], max_chars: int) -> list[list[str]]:
+    """Split lines into runs whose joined length stays under ``max_chars``.
+
+    Character count, not line count: recognition segments run under twenty
+    characters, so a line budget says almost nothing about how much meeting
+    a chunk actually holds.
+    """
+    chunks: list[list[str]] = []
+    current: list[str] = []
+    size = 0
+    for line in lines:
+        cost = len(line) + 1
+        if current and size + cost > max_chars:
+            chunks.append(current)
+            current = []
+            size = 0
+        current.append(line)
+        size += cost
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 def compose_document(
     lines: list[str],
     *,
     backend: str = llm.DEFAULT_BACKEND,
     model: str | None = None,
     timeout_sec: int = llm.DEFAULT_TIMEOUT_SEC,
-    chunk_lines: int = CHUNK_LINES,
+    max_chars: int = MAX_CHARS,
 ) -> tuple[str, Status]:
-    """Rewrite corrected transcript lines into a paragraphed document."""
+    """Rewrite corrected transcript lines into meeting minutes."""
     content = [line.strip() for line in lines if line.strip()]
     if not content:
         return "", "applied"
 
-    chunk_lines = max(1, chunk_lines)
-    chunks = [content[i : i + chunk_lines] for i in range(0, len(content), chunk_lines)]
-    LOG.info(
-        "Compose: %d line(s) in %d sequential chunk(s) of %d",
-        len(content),
-        len(chunks),
-        chunk_lines,
-    )
+    chunks = _split_by_chars(content, max(1, max_chars))
+    total_chars = sum(len(line) + 1 for line in content)
+    if len(chunks) == 1:
+        LOG.info("Compose: %d line(s), %d chars, single pass", len(content), total_chars)
+    else:
+        LOG.warning(
+            "Compose: %d line(s), %d chars — splitting into %d sequential chunk(s). "
+            "A topic spanning a seam may be written up twice.",
+            len(content),
+            total_chars,
+            len(chunks),
+        )
 
     sections: list[str] = []
     failures = 0

@@ -38,9 +38,17 @@ therefore fail to correct something, but it cannot drop, merge, or reorder
 transcript lines. Chunks run concurrently because they are independent.
 
 **Composition** must break structure: recognition segments are neither
-sentences nor paragraphs. Chunks run *sequentially*, each one receiving the
-tail of the previous chunk's output as read-only context, so the minutes
-continue across a seam instead of restarting.
+sentences nor paragraphs.
+
+It also runs as a *single call* by default. Minutes need the whole arc of a
+topic — the conclusion usually lands far after the topic opens — so splitting
+risks writing one topic up twice, on either side of the seam. The threshold is
+measured in characters, not lines: recognition segments run 8-16 characters, so
+a line budget says almost nothing about how much meeting a chunk holds. A real
+938-line transcript is under 15k characters, and even a three-hour meeting
+lands around 40k, so the 60k default means splitting essentially never happens.
+When it does, chunks run sequentially, each receiving the tail of the previous
+chunk's output as read-only context, and a warning is logged.
 
 The output is meeting minutes, not a cleaned-up verbatim transcript, but it
 keeps the order topics came up in — no regrouping, no headings, no summary
