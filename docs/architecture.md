@@ -39,14 +39,25 @@ transcript lines. Chunks run concurrently because they are independent.
 
 **Composition** must break structure: recognition segments are neither
 sentences nor paragraphs. Chunks run *sequentially*, each one receiving the
-tail of the previous chunk's output as read-only context, so paragraphs
-continue across a seam instead of restarting. The prompt asks for tidy-up, not
-summarization, and a large drop in character count is logged as a warning
-because it usually means the model summarized anyway.
+tail of the previous chunk's output as read-only context, so the minutes
+continue across a seam instead of restarting.
+
+The output is meeting minutes, not a cleaned-up verbatim transcript, but it
+keeps the order topics came up in — no regrouping, no headings, no summary
+block. Condensing is expected; losing a topic is not, so an extreme drop in
+character count is logged as a warning.
 
 Model output also passes a deterministic guard that demotes stray markdown
 headings and drops horizontal rules. LLM CLIs do not reliably obey "no
 headings", and enforcing it in code is free.
+
+The assembled document then goes through `autocorrect` once — full-width
+punctuation, CJK/Latin spacing — as the last thing before it is written.
+Applied to the whole document rather than per chunk, because chunk
+boundaries are not sentence boundaries. Models are inconsistent about
+punctuation width in Chinese prose, so it is normalized deterministically
+instead of being asked for in the prompt. (The default rules apply, spacing
+included; that is wanted in a document, unlike in subtitle lines.)
 
 ## Failure behavior
 

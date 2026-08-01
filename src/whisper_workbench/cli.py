@@ -337,7 +337,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="LLM 校正转录稿，再改写成分段正文文档",
         description=(
             "两趟 LLM 处理：先按行校正识别错误，再改写成分段正文。"
-            "改写是整理不是摘要，实质内容全部保留。"
+            "纪要按话题在录音里出现的顺序展开，没有标题层级。"
         ),
     )
     format_parser.add_argument("txt", help="wb transcribe 产出的逐行 txt")

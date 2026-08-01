@@ -92,3 +92,32 @@ def test_preceding_context_is_the_tail_of_the_previous_output(monkeypatch) -> No
     assert seen[0] is None
     assert seen[1] == "整理:甲"
     assert seen[2] == "整理:乙"
+
+
+def test_normalize_converts_punctuation_to_fullwidth() -> None:
+    assert compose.normalize("预算是300万.下周再看看,先这样") == "预算是 300 万。下周再看看，先这样"
+
+
+def test_normalize_keeps_paragraph_breaks() -> None:
+    normalized = compose.normalize("第一段有内容,写了一些东西.\n\n第二段也有内容,同样写了些.")
+
+    assert normalized.count("\n\n") == 1
+    assert normalized.splitlines()[1] == ""
+
+
+def test_document_is_normalized_before_being_returned(monkeypatch) -> None:
+    monkeypatch.setattr(compose, "_compose_chunk", lambda *a, **k: "预算是300万.")
+
+    document, status = compose.compose_document(["甲"], chunk_lines=1)
+
+    assert status == "applied"
+    assert document == "预算是 300 万。\n"
+
+
+def test_raw_fallback_lines_are_normalized_too(monkeypatch) -> None:
+    monkeypatch.setattr(compose, "_compose_chunk", lambda *a, **k: None)
+
+    document, status = compose.compose_document(["预算是300万."], chunk_lines=1)
+
+    assert status == "failed"
+    assert "预算是 300 万。" in document

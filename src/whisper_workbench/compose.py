@@ -1,11 +1,15 @@
-"""Stage 2: rewrite a corrected transcript into readable prose.
+"""Stage 2: rewrite a corrected transcript into meeting minutes.
 
 Unlike stage 1 this deliberately breaks line boundaries — speech recognition
-lines are not sentences and not paragraphs. The contract is tidy-up, not
-summarization: every substantive statement must survive.
+lines are neither sentences nor paragraphs. The output is minutes rather than
+a cleaned-up verbatim transcript, but it stays in the order topics came up:
+no regrouping, no headings, no summary block.
+
+Condensing is expected; losing a topic is not. The corrected transcript stays
+on disk, so the full record is always one file away.
 
 Chunks are processed sequentially rather than in parallel because each request
-is given the tail of the previous chunk's *output*, so paragraphs continue
+is given the tail of the previous chunk's *output*, so the minutes continue
 across a seam instead of restarting.
 """
 
@@ -14,15 +18,18 @@ from __future__ import annotations
 import logging
 import re
 
+import autocorrect_py
+
 from whisper_workbench import llm
 
 LOG = logging.getLogger(__name__)
 
 CHUNK_LINES = 300
 CONTEXT_TAIL_CHARS = 400
-# Below this ratio of output to input characters, the model probably
-# summarized instead of tidying up.
-LENGTH_WARN_RATIO = 0.6
+# Minutes legitimately run a fraction of the transcript's length, so this is
+# only a floor for "a whole stretch of the meeting went missing", not a
+# check on how tightly the model condensed.
+LENGTH_WARN_RATIO = 0.15
 
 Status = str  # "applied" | "partial" | "failed"
 
@@ -30,17 +37,23 @@ _HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+")
 _HR_RE = re.compile(r"^\s*([-*_])\s*(\1\s*){2,}$")
 
 INSTRUCTIONS = """\
-你在把一段会议录音的语音转录稿整理成可读的正式文档。
+你在把一段会议录音的语音转录稿整理成一份会议纪要。
 
-要求：
-- 保留全部实质内容。每一个论点、数据、结论、人名、时间、决定都必须留下。这是整理，不是摘要——不要压缩、不要提炼、不要省略任何一方的表述。
-- 去掉口头禅和语气词（那个、然后、就是说、嗯、啊、对对对），去掉重复的半句和自我纠正时被放弃的前半句。
-- 把语音识别切碎的短句合并成完整通顺的句子，补齐标点。
-- 按话题分段，段与段之间空一行。段落长度自然即可，不要一句一段。
-- 不要输出任何标题（不要出现 # ## ###），不要项目符号列表，除非说话人确实在逐条列举。
-- 不要添加原文没有的内容。不要写导语、不要写总结、不要写你自己的评论。
-- 保持说话人的原意和口吻，只改表达形式，不改立场和事实。
-- 直接输出整理后的正文。不要任何前言后语，不要用代码块包裹。
+结构要求：
+- 严格按照转录稿里话题出现的先后顺序组织。不要重新归类，不要把分散在不同时间的相关内容合并到一处，不要调整顺序。
+- 一个话题写成一段或连续几段，话题切换时空一行。段落长度自然即可，不要一句一段。
+- 不要输出任何标题（不要出现 # ## ###）。不要在开头写摘要，不要在结尾写总结。整篇就是顺序展开的正文。
+- 不要项目符号列表，除非说话人确实在逐条列举。
+
+内容要求：
+- 写成纪要，不是逐句誊清。用书面语转述讨论的内容，而不是把口语一句一句修顺。
+- 每个话题交代清楚：讨论的是什么问题、各方提出的观点和理由、达成的结论或决定、待办事项和负责人（原文提到才写）。
+- 保留全部实质信息：论点、数据、金额、时间、人名、决定、分歧。有分歧要写明是分歧，不要只写一方。
+- 去掉寒暄、口头禅、语气词、重复的半句、自我纠正时被放弃的部分，以及与议题无关的闲聊。
+- 不要添加原文没有的内容，不要写你自己的评价或建议。
+- 不要拔高结论的确定性：原文说"再看看"就不能写成"决定"。
+
+直接输出纪要正文，不要任何前言后语，不要用代码块包裹。
 """
 
 
@@ -82,6 +95,17 @@ def _clean_output(text: str) -> str:
 
 def _tail(text: str, limit: int = CONTEXT_TAIL_CHARS) -> str:
     return text[-limit:].strip() if len(text) > limit else text.strip()
+
+
+def normalize(text: str) -> str:
+    """Normalize punctuation width and CJK/Latin spacing in the final document.
+
+    Models are inconsistent about full-width versus half-width punctuation in
+    Chinese prose, so this is applied deterministically rather than asked for
+    in the prompt. Default rules, spacing included — that is wanted in a
+    document, unlike in subtitle lines.
+    """
+    return autocorrect_py.format(text)
 
 
 def _compose_chunk(
@@ -147,13 +171,17 @@ def compose_document(
             text = "\n".join(chunk)
         sections.append(text)
 
-    document = "\n\n".join(sections).strip() + "\n"
+    # Applied once over the assembled document rather than per chunk: chunk
+    # boundaries are not sentence boundaries, and this is the last thing that
+    # touches the text before it is written out.
+    document = normalize("\n\n".join(sections).strip()) + "\n"
 
     source_chars = sum(len(line) for line in content)
     if source_chars and len(document) < source_chars * LENGTH_WARN_RATIO:
         LOG.warning(
-            "Document is %d chars from %d chars of transcript — the model may have "
-            "summarized instead of tidying up. The corrected transcript is still on disk.",
+            "Minutes are %d chars from %d chars of transcript — that is short even "
+            "for minutes, so check whether a topic was dropped. The corrected "
+            "transcript is still on disk.",
             len(document),
             source_chars,
         )

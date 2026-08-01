@@ -4,7 +4,9 @@ dynamic = ["version"]
 description = "Turn meeting recordings into a corrected, readable transcript document"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "autocorrect-py>=2.14",
+]
 
 [project.scripts]
 wb = "whisper_workbench.cli:main"

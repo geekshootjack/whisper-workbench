@@ -58,7 +58,7 @@ The project must also conform to the `py-tool-standard`.
 | CLI | Single `wb` entry point with subcommands. |
 | Kept | whisper.cpp setup, `doctor`, `--glossary`, the four `scripts/` media utilities. |
 | Setup surface | Becomes the `wb setup` subcommand; the separate `wb-setup` entry point is dropped so `wb --help` lists every capability. |
-| Compose fidelity | Tidy-up, near-lossless. Strip fillers, merge fragments, paragraph by topic. Length stays close to the source. No condensation. |
+| Compose fidelity | **Amended after the first real run.** Originally near-lossless tidy-up; now meeting minutes. Condensing is expected, but topic order is preserved verbatim (no regrouping) and every argument, figure, decision and disagreement must survive. The corrected transcript stays on disk as the full record. |
 | Document head | None. Body prose only, no summary block, no heading hierarchy. |
 
 ## Current code findings
