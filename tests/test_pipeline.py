@@ -61,3 +61,51 @@ def test_compose_stage_needs_an_existing_corrected_file(tmp_path: Path) -> None:
 
     with pytest.raises(FileNotFoundError, match="corrected transcript"):
         pipeline.format_transcript(source, start_stage="compose")
+
+
+def _command(**overrides) -> list[str]:
+    from whisper_workbench import transcribe
+
+    defaults = dict(
+        whisper_cli=Path("whisper-cli"),
+        model_path=Path("model.bin"),
+        audio=Path("a.wav"),
+        lang="zh",
+        output_base=Path("out"),
+        vad_model_path=Path("vad.bin"),
+        initial_prompt=None,
+        want_srt=False,
+    )
+    return transcribe._build_command(**{**defaults, **overrides})
+
+
+def test_vad_segmentation_is_tuned_for_transcripts_not_subtitles() -> None:
+    from whisper_workbench import transcribe
+
+    cmd = _command()
+
+    # The 100ms default splits on every breath, yielding context-free lines.
+    assert "--vad-min-silence-duration-ms" in cmd
+    assert str(transcribe.VAD_MIN_SILENCE_MS) in cmd
+    assert transcribe.VAD_MIN_SILENCE_MS > 100
+
+
+def test_split_on_word_is_gone() -> None:
+    # A no-op without --max-len, and --max-len is not set.
+    cmd = _command()
+
+    assert "-sow" not in cmd
+    assert "--split-on-word" not in cmd
+    assert "--max-len" not in cmd
+
+
+def test_vad_flags_are_omitted_when_vad_is_off() -> None:
+    cmd = _command(vad_model_path=None)
+
+    assert not [flag for flag in cmd if flag.startswith("--vad")]
+
+
+def test_srt_output_is_opt_in() -> None:
+    assert "--output-srt" not in _command()
+    assert "--output-srt" in _command(want_srt=True)
+    assert "--output-txt" in _command()

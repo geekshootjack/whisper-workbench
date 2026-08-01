@@ -22,8 +22,23 @@ LOG = logging.getLogger(__name__)
 THREADS = max(1, min(8, os.cpu_count() or 4))
 BEAM_SIZE = 5
 BEST_OF = 5
+# Above this per-token entropy whisper retries the segment with a different
+# temperature. 2.8 is whisper.cpp's own default.
 ENTROPY_THOLD = 2.8
+# Text context carried between windows. whisper.cpp defaults to -1 (keep
+# everything), which is the classic way to get stuck in a repetition loop on
+# long recordings; capping it trades a little cross-segment coherence for not
+# transcribing the same sentence twenty times.
 MAX_CONTEXT = 64
+
+# VAD segmentation. The defaults are tuned for subtitles, where a short cue is
+# a feature. For a transcript that feeds an LLM they are actively harmful: a
+# 100 ms silence threshold splits on every breath and hesitation, producing
+# lines like "但是" and "因为这个太" that carry no context for the correction
+# stage to work with.
+VAD_MIN_SILENCE_MS = 700  # ride over hesitation pauses, split between utterances
+VAD_MAX_SPEECH_S = 30  # cap runaway segments; matches whisper's own window
+VAD_SPEECH_PAD_MS = 200  # 30 ms clips onsets and trailing syllables
 
 
 @dataclass(slots=True)
@@ -113,11 +128,24 @@ def _build_command(
         str(ENTROPY_THOLD),
         "--max-context",
         str(MAX_CONTEXT),
-        "-sow",
         "--suppress-nst",
     ]
+    # No --split-on-word: it only takes effect together with --max-len, which
+    # is left at 0, so it was a no-op left over from the subtitle days.
     if vad_model_path is not None:
-        cmd.extend(["--vad", "--vad-model", str(vad_model_path)])
+        cmd.extend(
+            [
+                "--vad",
+                "--vad-model",
+                str(vad_model_path),
+                "--vad-min-silence-duration-ms",
+                str(VAD_MIN_SILENCE_MS),
+                "--vad-max-speech-duration-s",
+                str(VAD_MAX_SPEECH_S),
+                "--vad-speech-pad-ms",
+                str(VAD_SPEECH_PAD_MS),
+            ]
+        )
     if initial_prompt:
         cmd.extend(["--prompt", initial_prompt])
 

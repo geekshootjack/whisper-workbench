@@ -72,6 +72,23 @@ punctuation width in Chinese prose, so it is normalized deterministically
 instead of being asked for in the prompt. (The default rules apply, spacing
 included; that is wanted in a document, unlike in subtitle lines.)
 
+## Segmentation
+
+whisper.cpp's VAD defaults are tuned for subtitles, where a short cue is a
+feature. For a transcript they are actively harmful: the 100 ms silence
+threshold splits on every breath and hesitation, so the raw output is full of
+lines like `但是` and `因为这个太`.
+
+Composition ignores line structure entirely, but correction does not — it
+works line by line, and a two-character line gives the model no context to
+judge whether anything is wrong. So the VAD is retuned to ride over hesitation
+pauses (`--vad-min-silence-duration-ms 700`), cap runaway segments
+(`--vad-max-speech-duration-s 30`, matching whisper's own window), and stop
+clipping onsets (`--vad-speech-pad-ms 200`).
+
+`--split-on-word` was dropped: it only takes effect together with `--max-len`,
+which is left at 0, so it had been a no-op since the subtitle days.
+
 ## Failure behavior
 
 Neither stage is allowed to lose the transcript.
