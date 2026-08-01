@@ -101,26 +101,26 @@ def test_a_command_is_required() -> None:
         _parse([])
 
 
-def test_scp_source_names_this_host_and_user(monkeypatch) -> None:
-    monkeypatch.setattr(cli.getpass, "getuser", lambda: "geekshootjack")
+def test_scp_source_names_this_host(monkeypatch) -> None:
+    monkeypatch.delenv("WB_SSH_HOST", raising=False)
     monkeypatch.setattr(cli.socket, "gethostname", lambda: "GSJ-5.local")
 
     spec = cli._scp_source(Path("/Users/geekshootjack/a/meeting.txt"))
 
-    assert spec == "geekshootjack@GSJ-5.local:/Users/geekshootjack/a/meeting.txt"
+    # Short lowercase name only: it matches the ssh config alias, and the
+    # user is whatever that alias resolves to.
+    assert spec == "gsj-5:/Users/geekshootjack/a/meeting.txt"
 
 
-def test_scp_source_uses_the_mdns_name_on_macos(monkeypatch) -> None:
-    monkeypatch.setattr(cli.getpass, "getuser", lambda: "u")
-    monkeypatch.setattr(cli.socket, "gethostname", lambda: "GSJ-5")
-    monkeypatch.setattr(cli.sys, "platform", "darwin")
+def test_ssh_host_can_be_overridden(monkeypatch) -> None:
+    monkeypatch.setattr(cli.socket, "gethostname", lambda: "GSJ-5.local")
+    monkeypatch.setenv("WB_SSH_HOST", "mac-studio")
 
-    # A bare hostname does not resolve from the other machine.
-    assert cli._scp_source(Path("/a/b.txt")).startswith("u@GSJ-5.local:")
+    assert cli._ssh_host() == "mac-studio"
 
 
 def test_scp_source_quotes_paths_containing_spaces(monkeypatch) -> None:
-    monkeypatch.setattr(cli.getpass, "getuser", lambda: "u")
+    monkeypatch.delenv("WB_SSH_HOST", raising=False)
     monkeypatch.setattr(cli.socket, "gethostname", lambda: "h.local")
 
     spec = cli._scp_source(Path("/a/BL Live Mix.txt"))
@@ -129,14 +129,34 @@ def test_scp_source_quotes_paths_containing_spaces(monkeypatch) -> None:
     assert r"BL\ Live\ Mix.txt" in spec
 
 
-def test_next_steps_offers_the_bare_filename_after_a_copy(capsys, monkeypatch) -> None:
-    monkeypatch.setattr(cli.getpass, "getuser", lambda: "u")
-    monkeypatch.setattr(cli.socket, "gethostname", lambda: "h.local")
+def test_next_steps_mirrors_the_repo_relative_location(capsys, monkeypatch, tmp_path) -> None:
+    monkeypatch.delenv("WB_SSH_HOST", raising=False)
+    monkeypatch.setattr(cli.socket, "gethostname", lambda: "gsj-5")
 
-    cli._print_next_steps([Path("/Users/u/rec/meeting.txt")])
+    repo = tmp_path / "whisper-workbench"
+    (repo / ".git").mkdir(parents=True)
+    txt = repo / "data" / "pgmrecon" / "2026-07-28" / "rec.txt"
+    txt.parent.mkdir(parents=True)
+
+    cli._print_next_steps([txt])
     out = capsys.readouterr().out
 
-    assert "scp u@h.local:/Users/u/rec/meeting.txt ." in out
-    # After scp the file is in the cwd, so the follow-up must not use the
-    # remote absolute path.
-    assert "wb format meeting.txt" in out
+    # Copying into the matching directory keeps the follow-up path valid on
+    # the other machine.
+    assert "data/pgmrecon/2026-07-28/\n" in out
+    assert "wb format data/pgmrecon/2026-07-28/rec.txt" in out
+    assert "在仓库根目录运行" in out
+
+
+def test_next_steps_falls_back_to_cwd_outside_a_repo(capsys, monkeypatch, tmp_path) -> None:
+    monkeypatch.delenv("WB_SSH_HOST", raising=False)
+    monkeypatch.setattr(cli.socket, "gethostname", lambda: "gsj-5")
+
+    txt = tmp_path / "loose" / "meeting.txt"
+    txt.parent.mkdir(parents=True)
+
+    cli._print_next_steps([txt])
+    out = capsys.readouterr().out
+
+    assert out.rstrip().endswith("wb format meeting.txt")
+    assert " ." in out

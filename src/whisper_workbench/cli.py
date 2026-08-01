@@ -9,9 +9,9 @@ subcommand names.
 from __future__ import annotations
 
 import argparse
-import getpass
 import json
 import logging
+import os
 import shutil
 import socket
 import sys
@@ -45,35 +45,60 @@ def _print_json(payload: dict[str, object]) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
-def _scp_source(path: Path) -> str:
-    """Build the remote half of an scp command pointing at ``path`` here.
+def _ssh_host() -> str:
+    """Return the name the other machine can reach this one by.
 
-    The workflow assumes transcription and formatting happen on different
-    machines, so the completion message hands over a command that can be
-    pasted on the *other* machine to pull the transcript across.
+    The short lowercase hostname is what an ssh config alias is normally
+    named after. ``WB_SSH_HOST`` overrides it when that guess is wrong.
     """
-    host = socket.gethostname()
-    # A bare hostname is not resolvable from another machine; the mDNS name is.
-    if "." not in host and sys.platform == "darwin":
-        host = f"{host}.local"
+    override = os.environ.get("WB_SSH_HOST")
+    if override:
+        return override
+    return socket.gethostname().split(".")[0].lower()
 
+
+def _scp_source(path: Path) -> str:
+    """Build the remote half of an scp command pointing at ``path`` here."""
     text = path.as_posix()
-    spec = f"{getpass.getuser()}@{host}:{text}"
+    spec = f"{_ssh_host()}:{text}"
     if any(char in text for char in " '\"()"):
         escaped = text.replace("\\", "\\\\").replace(" ", "\\ ")
-        spec = f"'{getpass.getuser()}@{host}:{escaped}'"
+        spec = f"'{_ssh_host()}:{escaped}'"
     return spec
+
+
+def _repo_relative(path: Path) -> Path | None:
+    """Return ``path`` relative to its enclosing git work tree, if any."""
+    for parent in path.parents:
+        if (parent / ".git").exists():
+            return path.relative_to(parent)
+    return None
 
 
 def _print_next_steps(txt_paths: list[Path]) -> None:
     joined = " ".join(str(path) for path in txt_paths)
     print(f"\n下一步：wb format {joined}")
 
-    sources = " ".join(_scp_source(path) for path in txt_paths)
-    names = " ".join(path.name for path in txt_paths)
-    print("\n在另一台机器上处理，先拉过去：")
-    print(f"  scp {sources} .")
-    print(f"  wb format {names}")
+    # Mirror the layout on the other machine: copying into the same
+    # repo-relative directory keeps the follow-up path valid there.
+    relatives = [_repo_relative(path) for path in txt_paths]
+    if any(relative is not None for relative in relatives):
+        print("\n在另一台机器上处理（在仓库根目录运行）：")
+    else:
+        print("\n在另一台机器上处理，先拉过去：")
+
+    targets: list[str] = []
+    for path, relative in zip(txt_paths, relatives):
+        if relative is None:
+            destination = "."
+            targets.append(path.name)
+        else:
+            parent = relative.parent.as_posix()
+            destination = "." if parent == "." else f"{parent}/"
+            targets.append(relative.as_posix())
+        print(f"  scp {_scp_source(path)} {destination}")
+
+    print(f"  wb format {' '.join(targets)}")
 
 
 def _read_text_file(path: Path, label: str) -> str:
