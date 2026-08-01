@@ -12,8 +12,10 @@ import os
 import shutil
 from pathlib import Path
 
-DEFAULT_MODEL = "large-v3-turbo"
-MODEL_CHOICES = ("large-v3-turbo", "large-v3")
+# large-v3 over the distilled turbo: this runs unattended on recorded audio,
+# so accuracy on multi-speaker Chinese matters and the extra minutes do not.
+DEFAULT_MODEL = "large-v3"
+MODEL_CHOICES = ("large-v3", "large-v3-turbo")
 VAD_MODEL = "silero-v5.1.2"
 
 ENV_CLI = "WHISPER_CLI_PATH"
