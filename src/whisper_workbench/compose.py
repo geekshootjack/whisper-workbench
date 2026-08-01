@@ -39,6 +39,7 @@ Status = str  # "applied" | "partial" | "failed"
 
 _HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+")
 _HR_RE = re.compile(r"^\s*([-*_])\s*(\1\s*){2,}$")
+_CJK_RE = re.compile(r"[一-鿿]")
 
 INSTRUCTIONS = """\
 你在把一段会议录音的语音转录稿整理成一份会议纪要。
@@ -101,15 +102,43 @@ def _tail(text: str, limit: int = CONTEXT_TAIL_CHARS) -> str:
     return text[-limit:].strip() if len(text) > limit else text.strip()
 
 
+def _curly_quotes(text: str) -> str:
+    """Turn straight quote pairs into Chinese curly quotes.
+
+    autocorrect deliberately leaves quotes alone — it cannot tell an opening
+    quote from a closing one, an apostrophe, or an inch mark. Restricting the
+    rewrite to *balanced pairs on a line that contains Chinese* makes the
+    direction unambiguous. An odd quote out is left as-is rather than guessed
+    at, and single quotes are only touched when they wrap Chinese, so English
+    apostrophes survive.
+    """
+
+    def fix(line: str) -> str:
+        if not _CJK_RE.search(line):
+            return line
+        line = re.sub(r'"([^"\n]*)"', "“\\1”", line)
+        return re.sub(
+            r"'([^'\n]*)'",
+            lambda m: f"‘{m.group(1)}’" if _CJK_RE.search(m.group(1)) else m.group(0),
+            line,
+        )
+
+    # split("\n") rather than splitlines(): it round-trips exactly, so a
+    # trailing newline survives and stray \r or \x0b are not treated as
+    # line breaks.
+    return "\n".join(fix(line) for line in text.split("\n"))
+
+
 def normalize(text: str) -> str:
-    """Normalize punctuation width and CJK/Latin spacing in the final document.
+    """Normalize punctuation in the final document.
 
     Models are inconsistent about full-width versus half-width punctuation in
     Chinese prose, so this is applied deterministically rather than asked for
-    in the prompt. Default rules, spacing included — that is wanted in a
-    document, unlike in subtitle lines.
+    in the prompt. autocorrect's default rules, spacing included — that is
+    wanted in a document, unlike in subtitle lines — plus the quote handling
+    autocorrect leaves out.
     """
-    return autocorrect_py.format(text)
+    return _curly_quotes(autocorrect_py.format(text))
 
 
 def _compose_chunk(

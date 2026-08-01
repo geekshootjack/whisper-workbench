@@ -60,7 +60,12 @@ headings and drops horizontal rules. LLM CLIs do not reliably obey "no
 headings", and enforcing it in code is free.
 
 The assembled document then goes through `autocorrect` once — full-width
-punctuation, CJK/Latin spacing — as the last thing before it is written.
+punctuation, CJK/Latin spacing — plus a quote pass, as the last thing before
+it is written. autocorrect deliberately leaves quotes alone because it cannot
+tell an opening quote from a closing one, an apostrophe, or an inch mark; the
+quote pass sidesteps that by only rewriting *balanced pairs on a line
+containing Chinese*, where the direction is unambiguous. An odd quote out is
+left alone rather than guessed at.
 Applied to the whole document rather than per chunk, because chunk
 boundaries are not sentence boundaries. Models are inconsistent about
 punctuation width in Chinese prose, so it is normalized deterministically

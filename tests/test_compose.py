@@ -151,3 +151,46 @@ def test_a_line_longer_than_the_budget_still_gets_its_own_chunk() -> None:
     chunks = compose._split_by_chars(["短", "特别长" * 100, "短"], 10)
 
     assert [line for chunk in chunks for line in chunk] == ["短", "特别长" * 100, "短"]
+
+
+def test_straight_double_quotes_become_curly_in_chinese_prose() -> None:
+    assert compose.normalize('他说"下周再看看"，然后散会') == "他说“下周再看看”，然后散会"
+
+
+def test_multiple_quote_pairs_on_one_line() -> None:
+    out = compose.normalize('先谈"排期"，再谈"预算"这件事')
+
+    assert out == "先谈“排期”，再谈“预算”这件事"
+
+
+def test_an_unbalanced_quote_is_left_alone() -> None:
+    # Guessing the direction would be worse than leaving it.
+    assert '"' in compose.normalize('他说"这个事情还没定，先这样')
+
+
+def test_english_apostrophes_survive() -> None:
+    out = compose.normalize("他提到 don't repeat yourself 这个原则很重要")
+
+    assert "don't" in out
+    assert "‘" not in out
+
+
+def test_single_quotes_wrapping_chinese_become_curly() -> None:
+    out = compose.normalize("他把这个叫做'饱和式工作'这种说法")
+
+    assert "‘饱和式工作’" in out
+
+
+def test_lines_without_chinese_are_untouched_by_quote_rules() -> None:
+    assert compose._curly_quotes('print("hello")') == 'print("hello")'
+
+
+def test_normalize_preserves_a_trailing_newline() -> None:
+    assert compose._curly_quotes("他说了一句话。\n") == "他说了一句话。\n"
+
+
+def test_normalize_only_touches_what_it_claims_to() -> None:
+    original = '第一段有"引号"在里面。\n\n第二段没有。\n'
+    normalized = compose._curly_quotes(original)
+
+    assert normalized == '第一段有“引号”在里面。\n\n第二段没有。\n'
