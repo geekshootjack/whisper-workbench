@@ -17,15 +17,15 @@ wb format meeting.txt         ->  meeting.corrected.txt    LLM 按行校正识�
 ## 安装
 
 ```sh
-uv tool install git+https://github.com/thomjiji/whisper-workbench            # 跟随 main
-uv tool install git+https://github.com/thomjiji/whisper-workbench@v0.1.0     # 锁定版本
+uv tool install git+https://github.com/geekshootjack/whisper-workbench            # 跟随 main
+uv tool install git+https://github.com/geekshootjack/whisper-workbench@v0.1.0     # 锁定版本
 uv tool upgrade whisper-workbench
 ```
 
 一次性使用：
 
 ```sh
-uvx --from git+https://github.com/thomjiji/whisper-workbench wb transcribe meeting.m4a
+uvx --from git+https://github.com/geekshootjack/whisper-workbench wb transcribe meeting.m4a
 ```
 
 ## 每台机器第一次使用
@@ -72,7 +72,7 @@ wb format meeting.txt --json            # 机器可读的结果路径与状态
 ## 开发
 
 ```sh
-git clone https://github.com/thomjiji/whisper-workbench
+git clone https://github.com/geekshootjack/whisper-workbench
 cd whisper-workbench
 uv sync --all-groups
 uv run wb --help

@@ -212,7 +212,7 @@ gemini/claude/codex CLIs are on `PATH`. `--json` for agent consumption.
   single `wb` script entry. Drop the `autocorrect-py` dependency.
 - Add `.github/workflows/ci.yml` (3 OS × Python 3.10/3.13) and
   `release.yml` (tag-triggered GitHub Release) as specified.
-- README documents `uv tool install git+https://github.com/thomjiji/whisper-workbench`
+- README documents `uv tool install git+https://github.com/geekshootjack/whisper-workbench`
   as the install path; `git clone` + `uv sync` becomes the dev-only route.
 - AGENTS.md records the commit style, release procedure, and the cross-OS test
   rules (no hardcoded path separators, no reliance on FS enumeration order).
