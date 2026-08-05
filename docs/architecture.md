@@ -59,25 +59,30 @@ Model output also passes a deterministic guard that demotes stray markdown
 headings and drops horizontal rules. LLM CLIs do not reliably obey "no
 headings", and enforcing it in code is free.
 
-The assembled document then goes through `autocorrect` once — full-width
-punctuation, CJK/Latin spacing — plus a quote pass, as the last thing before
-it is written. autocorrect deliberately leaves quotes alone because it cannot
-tell an opening quote from a closing one, an apostrophe, or an inch mark; the
-quote pass sidesteps that by only rewriting *balanced pairs on a line
-containing Chinese*, where the direction is unambiguous. An odd quote out is
-left alone rather than guessed at.
-Applied to the whole document rather than per chunk, because chunk
-boundaries are not sentence boundaries. Models are inconsistent about
-punctuation width in Chinese prose, so it is normalized deterministically
-instead of being asked for in the prompt. (The default rules apply, spacing
-included; that is wanted in a document, unlike in subtitle lines.)
+The assembled document is then normalized as the last thing before it is
+written — once over the whole document, not per chunk, since chunk boundaries
+are not sentence boundaries. Models are inconsistent about punctuation width
+in Chinese prose, so this is enforced in code rather than asked for in the
+prompt. `autocorrect` does the bulk of it under its default rules, spacing
+included; that spacing is wanted in a document, unlike in subtitle lines.
 
-Two things autocorrect will not do are handled around it. It leaves quotes
-alone entirely, so balanced straight pairs on a line containing Chinese are
-curled first. And it only widens punctuation preceded by a *word* character —
-after a quote or bracket it declines on purpose, so that code like ``foo(),``
-survives — which leaves 看看”, half-width; that case is widened afterwards.
-Half-width parentheses are deliberately left as they are.
+Two things autocorrect will not do are handled around it:
+
+- **Quote direction.** It leaves quotes alone entirely, because it cannot tell
+  an opening quote from a closing one, an apostrophe, or an inch mark. The
+  quote pass sidesteps that by only rewriting *balanced pairs on a line
+  containing Chinese*, where the direction is unambiguous. An odd quote out is
+  left alone rather than guessed at, and single quotes are only touched when
+  they wrap Chinese, so English apostrophes survive.
+- **Punctuation after a quote.** autocorrect only widens punctuation preceded
+  by a *word* character; after a quote or bracket it declines on purpose, so
+  that code like `foo(),` survives. That leaves 看看”, half-width, and by then
+  autocorrect has already run, so it is widened afterwards — along with
+  dropping the space autocorrect had inserted before the following CJK, which
+  is wrong once the punctuation is full-width.
+
+Half-width parentheses are deliberately left as they are; autocorrect spaces
+rather than widens them by design.
 
 ## Segmentation
 
