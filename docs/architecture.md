@@ -72,6 +72,13 @@ punctuation width in Chinese prose, so it is normalized deterministically
 instead of being asked for in the prompt. (The default rules apply, spacing
 included; that is wanted in a document, unlike in subtitle lines.)
 
+Two things autocorrect will not do are handled around it. It leaves quotes
+alone entirely, so balanced straight pairs on a line containing Chinese are
+curled first. And it only widens punctuation preceded by a *word* character —
+after a quote or bracket it declines on purpose, so that code like ``foo(),``
+survives — which leaves 看看”, half-width; that case is widened afterwards.
+Half-width parentheses are deliberately left as they are.
+
 ## Segmentation
 
 whisper.cpp's VAD defaults are tuned for subtitles, where a short cue is a

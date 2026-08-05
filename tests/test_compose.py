@@ -194,3 +194,25 @@ def test_normalize_only_touches_what_it_claims_to() -> None:
     normalized = compose._curly_quotes(original)
 
     assert normalized == '第一段有“引号”在里面。\n\n第二段没有。\n'
+
+
+def test_punctuation_after_a_closing_quote_is_widened() -> None:
+    # autocorrect declines here: the preceding char is a quote, not a word.
+    assert compose.normalize('他说"下周再看看",预算很紧') == "他说“下周再看看”，预算很紧"
+    assert compose.normalize('他说"下周再看看".然后散会') == "他说“下周再看看”。然后散会"
+    assert compose.normalize('他说"下周看"?没人回答') == "他说“下周看”？没人回答"
+
+
+def test_a_run_of_punctuation_after_a_quote_is_fully_widened() -> None:
+    assert compose.normalize('他说"真的吗"?!太离谱了') == "他说“真的吗”？！太离谱了"
+
+
+def test_english_lines_keep_straight_quotes_and_half_width_punctuation() -> None:
+    line = 'He said "ok", then left.'
+
+    assert compose.normalize(line) == line
+
+
+def test_half_width_parens_are_left_alone() -> None:
+    # autocorrect spaces rather than widens them by design.
+    assert "foo(), " in compose.normalize('他说"好"，用了 foo(), 这种写法')

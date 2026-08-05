@@ -35,6 +35,12 @@ CONTEXT_TAIL_CHARS = 400
 # check on how tightly the model condensed.
 LENGTH_WARN_RATIO = 0.15
 
+_HALF_TO_FULL = {",": "，", ".": "。", "?": "？", "!": "！", ":": "：", ";": "；"}
+_AFTER_QUOTE_RE = re.compile(rf"([”’])([{''.join(_HALF_TO_FULL)}]+)")
+# autocorrect spaces half-width punctuation away from the CJK that follows it.
+# Once that punctuation has been widened the space is wrong.
+_SPACE_AFTER_FULLWIDTH_RE = re.compile(rf"([{''.join(_HALF_TO_FULL.values())}]) +(?=[一-鿿])")
+
 Status = str  # "applied" | "partial" | "failed"
 
 _HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+")
@@ -129,16 +135,34 @@ def _curly_quotes(text: str) -> str:
     return "\n".join(fix(line) for line in text.split("\n"))
 
 
+def _widen_after_quotes(text: str) -> str:
+    """Widen half-width punctuation trailing a closing curly quote.
+
+    autocorrect only widens punctuation preceded by a word character; where
+    a quote or bracket comes first it declines on purpose, so that code like
+    ``foo(),`` survives. That leaves 看看”, half-width, and by the time
+    :func:`_curly_quotes` has produced the ``”`` autocorrect has already run.
+
+    Only quotes are handled here. Half-width parentheses are left alone —
+    autocorrect spaces rather than widens them by design.
+    """
+    widened = _AFTER_QUOTE_RE.sub(
+        lambda m: m.group(1) + "".join(_HALF_TO_FULL[c] for c in m.group(2)),
+        text,
+    )
+    return _SPACE_AFTER_FULLWIDTH_RE.sub(r"\1", widened)
+
+
 def normalize(text: str) -> str:
     """Normalize punctuation in the final document.
 
     Models are inconsistent about full-width versus half-width punctuation in
     Chinese prose, so this is applied deterministically rather than asked for
     in the prompt. autocorrect's default rules, spacing included — that is
-    wanted in a document, unlike in subtitle lines — plus the quote handling
-    autocorrect leaves out.
+    wanted in a document, unlike in subtitle lines — plus the two things
+    autocorrect leaves out: quote direction, and punctuation after a quote.
     """
-    return _curly_quotes(autocorrect_py.format(text))
+    return _widen_after_quotes(_curly_quotes(autocorrect_py.format(text)))
 
 
 def _compose_chunk(
