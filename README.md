@@ -32,9 +32,9 @@ uv tool upgrade whisper-workbench
 uvx --from git+https://github.com/geekshootjack/whisper-workbench wb transcribe meeting.m4a
 ```
 
-## 每台机器第一次使用
+## 前置要求
 
-转录那台机器的前置要求：`ffmpeg` 和 `whisper-cli`（macOS 用 `brew install whisper-cpp`；Windows 从 whisper.cpp 的 GitHub releases 下载）。
+转录那台机器需要 `ffmpeg` 和 `whisper-cli`（macOS 用 `brew install whisper-cpp`；Windows 从 whisper.cpp 的 GitHub releases 下载）。
 
 ```sh
 wb setup      # 下载模型，每台机器跑一次

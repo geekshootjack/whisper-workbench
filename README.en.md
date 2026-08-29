@@ -38,7 +38,7 @@ One-off use:
 uvx --from git+https://github.com/geekshootjack/whisper-workbench wb transcribe meeting.m4a
 ```
 
-## First Use Per Machine
+## Prerequisites
 
 The transcribing machine needs `ffmpeg` and `whisper-cli` (macOS: `brew
 install whisper-cpp`; Windows: grab a build from
