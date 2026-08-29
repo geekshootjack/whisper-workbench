@@ -113,7 +113,7 @@ def _read_text_file(path: Path, label: str) -> str:
 
 
 def cmd_setup(args: argparse.Namespace) -> int:
-    return run_setup(model=args.model)
+    return run_setup(model=args.model, uninstall=args.uninstall)
 
 
 def cmd_transcribe(args: argparse.Namespace) -> int:
@@ -316,6 +316,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=assets.MODEL_CHOICES,
         default=assets.DEFAULT_MODEL,
         help=f"下载哪个 whisper 模型（默认 {assets.DEFAULT_MODEL}）",
+    )
+    setup_parser.add_argument(
+        "--uninstall",
+        action="store_true",
+        help="删除 wb setup 下载的模型并退出",
     )
     setup_parser.set_defaults(func=cmd_setup)
 

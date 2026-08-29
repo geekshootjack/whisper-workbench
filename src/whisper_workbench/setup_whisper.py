@@ -78,9 +78,16 @@ def _fetch(urls: list[str], destination: Path, label: str) -> None:
     _curl(urls, destination)
 
 
-def run_setup(model: str = assets.DEFAULT_MODEL) -> int:
+def run_setup(model: str = assets.DEFAULT_MODEL, uninstall: bool = False) -> int:
     """Download the ggml model and the VAD model into the user data dir."""
     models_dir = assets.user_data_dir() / "models"
+    if uninstall:
+        if models_dir.is_dir():
+            shutil.rmtree(models_dir)
+            print(f"==> Removed {models_dir}")
+        else:
+            print(f"==> Nothing to remove: {models_dir} does not exist")
+        return 0
     model_path = models_dir / assets.model_file_name(model)
     vad_path = models_dir / assets.model_file_name(assets.VAD_MODEL)
 

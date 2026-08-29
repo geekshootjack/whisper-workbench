@@ -43,6 +43,26 @@ def test_run_setup_skips_existing_models(tmp_path: Path, monkeypatch: pytest.Mon
     assert setup_whisper.run_setup() == 0
 
 
+def test_uninstall_removes_the_models_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    (models_dir / "ggml-large-v3.bin").write_bytes(b"x")
+    monkeypatch.setattr(assets, "user_data_dir", lambda: tmp_path)
+
+    assert setup_whisper.run_setup(uninstall=True) == 0
+    assert not models_dir.exists()
+
+
+def test_uninstall_is_a_noop_without_the_models_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(assets, "user_data_dir", lambda: tmp_path)
+
+    assert setup_whisper.run_setup(uninstall=True) == 0
+
+
 def test_curl_failure_falls_back_to_the_mirror(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
