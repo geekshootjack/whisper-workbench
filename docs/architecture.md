@@ -50,7 +50,7 @@ drop in character count is logged as a warning.
 Deterministic guards run around the model output:
 
 - Stray markdown headings are demoted and horizontal rules dropped; LLM CLIs
-  do not reliably obey "no headings", and enforcing it in code is free.
+  do not reliably obey "no headings".
 - The document is normalized once over the whole text, as the last step before
   it is written — chunk boundaries are not sentence boundaries. `autocorrect`
   does the bulk of it; models are inconsistent about punctuation width in
@@ -80,9 +80,6 @@ model no context to judge. The VAD is retuned: ride over hesitation pauses
 (`--vad-min-silence-duration-ms 700`), cap runaway segments
 (`--vad-max-speech-duration-s 30`, matching whisper's own window), stop
 clipping onsets (`--vad-speech-pad-ms 200`).
-
-`--split-on-word` was dropped: it only takes effect together with `--max-len`,
-which is left at 0, so it had been a no-op since the subtitle days.
 
 ## Failure behavior
 

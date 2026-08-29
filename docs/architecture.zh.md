@@ -34,7 +34,7 @@ audio ──▶ wb transcribe ──▶ meeting.txt ──▶ wb format ──�
 
 模型输出外面包着一层确定性守卫：
 
-- 游离的 markdown 标题被降级、水平线被删除；LLM CLI 不会稳定遵守“不要标题”，而在代码里强制执行是免费的。
+- 游离的 markdown 标题被降级、水平线被删除；LLM CLI 不会稳定遵守“不要标题”。
 - 整篇文档在写出前统一归一化一次——分块边界不是句子边界。`autocorrect` 承担大部分工作；模型对中文标点的全半角不一致，所以这件事在代码里强制执行，而不是写进提示词。
 
 autocorrect 不做的两件事由外围代码处理：
@@ -47,8 +47,6 @@ autocorrect 不做的两件事由外围代码处理：
 ## 分段
 
 whisper.cpp 的 VAD 默认值按字幕调优，短 cue 在字幕里是优点；放到转录稿里就成了灾难：每个呼吸和犹豫处都切行，而逐行工作的校正拿到的两三个字的行给不了模型判断上下文。于是 VAD 重新调参：跨过犹豫停顿（`--vad-min-silence-duration-ms 700`），限制失控长段（`--vad-max-speech-duration-s 30`，与 whisper 自身窗口一致），避免切掉句首（`--vad-speech-pad-ms 200`）。
-
-`--split-on-word` 已移除：它只在配合 `--max-len` 时生效，而 `--max-len` 保持 0，从字幕时代起它就是空操作。
 
 ## 失败行为
 
