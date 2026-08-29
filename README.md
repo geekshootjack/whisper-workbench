@@ -40,6 +40,7 @@ uvx --from git+https://github.com/geekshootjack/whisper-workbench wb transcribe 
 ```sh
 wb setup      # 下载模型，每台机器跑一次
 ```
+
 不确定这台机器能跑哪一步：
 
 ```sh

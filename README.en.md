@@ -43,10 +43,10 @@ uvx --from git+https://github.com/geekshootjack/whisper-workbench wb transcribe 
 - Transcribing: `ffmpeg`, `whisper-cli` ([whisper.cpp](https://github.com/ggml-org/whisper.cpp))
 - Post-processing: `claude` or `codex`, on `PATH`
 
-
 ```sh
 wb setup      # downloads the models, once per machine
 ```
+
 Not sure what a given machine can run:
 
 ```sh

@@ -15,6 +15,7 @@ import os
 import shutil
 import socket
 import sys
+import unicodedata
 from pathlib import Path
 
 from whisper_workbench import __version__, assets, compose, llm, pipeline, transcribe
@@ -249,22 +250,43 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         def status(value: object) -> str:
             return str(value) if value else "缺失"
 
-        print(f"ffmpeg       {status(ffmpeg)}")
-        print(f"whisper-cli  {status(whisper_cli)}")
+        def width(text: str) -> int:
+            return sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in text)
+
+        labels = [
+            "ffmpeg",
+            "whisper-cli",
+            *[f"模型 {variant}" for variant in models],
+            "VAD 模型",
+            "LLM CLI",
+            "模型目录",
+            "wb transcribe",
+            "wb format",
+        ]
+        column = max(width(label) for label in labels) + 2
+
+        def line(label: str, value: object) -> str:
+            return label + " " * (column - width(label)) + status(value)
+
+        print(line("ffmpeg", ffmpeg))
+        print(line("whisper-cli", whisper_cli))
         for variant, path in models.items():
-            default_mark = " (默认)" if variant == assets.DEFAULT_MODEL else ""
-            print(f"模型 {variant}{default_mark}  {status(path)}")
-        print(f"VAD 模型      {status(vad_model)}")
-        print(f"LLM CLI      {', '.join(backends) if backends else '缺失'}")
-        print(f"模型目录      {assets.user_data_dir() / 'models'}")
+            print(line(f"模型 {variant}", path))
+        print(line("VAD 模型", vad_model))
+        print(line("LLM CLI", ", ".join(backends) if backends else None))
+        print(line("模型目录", assets.user_data_dir() / "models"))
         print()
-        print(f"wb transcribe  {'可用' if can_transcribe else '不可用 —— 跑 wb setup'}")
+        print(
+            line("wb transcribe", "可用" if can_transcribe else "不可用 —— 跑 wb setup")
+        )
         if can_transcribe and models[assets.DEFAULT_MODEL] is None:
             usable = next(v for v, p in models.items() if p)
-            print(f"               默认模型不在，转录时加 -m {usable}")
+            print(" " * column + f"默认模型不在，转录时加 -m {usable}")
         print(
-            f"wb format      "
-            f"{'可用' if can_format else '不可用 —— 需要 claude 或 codex 在 PATH 上'}"
+            line(
+                "wb format",
+                "可用" if can_format else "不可用 —— 需要 claude 或 codex 在 PATH 上",
+            )
         )
 
     return 0 if (can_transcribe or can_format) else 1
