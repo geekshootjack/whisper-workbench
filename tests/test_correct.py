@@ -10,7 +10,7 @@ import json
 
 import pytest
 
-from whisper_workbench import correct
+from whisper_workbench import correct, llm
 
 
 def _patch(items: list[dict[str, object]]) -> str:
@@ -86,6 +86,7 @@ def test_line_count_is_preserved_when_every_backend_fails(monkeypatch) -> None:
         raise RuntimeError("backend unavailable")
 
     monkeypatch.setattr(correct, "_correct_chunk_once", boom)
+    monkeypatch.setattr(llm, "available_backends", lambda: ["claude"])
 
     lines = [f"第{i}行" for i in range(120)]
     corrected, status = correct.correct_lines(lines)
