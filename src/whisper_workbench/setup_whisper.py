@@ -13,9 +13,9 @@ from pathlib import Path
 
 from whisper_workbench import assets
 
-# huggingface.co first; hf-mirror.com is a path-identical mirror of it, used
-# as the fallback where HF is slow or unreachable.
-HOSTS = ("https://huggingface.co", "https://hf-mirror.com")
+# hf-mirror.com first (reachable where HF is slow or blocked); huggingface.co
+# is the path-identical fallback.
+HOSTS = ("https://hf-mirror.com", "https://huggingface.co")
 MODEL_REPO = "ggerganov/whisper.cpp"
 VAD_REPO = "ggml-org/whisper-vad"
 

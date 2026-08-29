@@ -20,7 +20,7 @@ format` never touches audio. The handoff is a single `.txt` file.
 | --- | --- |
 | `cli.py` | argparse surface and the human/JSON output. |
 | `assets.py` | The one place that resolves whisper-cli, model, and VAD model paths. |
-| `setup_whisper.py` | `wb setup`: download models into the user data dir (huggingface.co with hf-mirror.com fallback, resumable). |
+| `setup_whisper.py` | `wb setup`: download models into the user data dir (hf-mirror.com with huggingface.co fallback, resumable). |
 | `transcribe.py` | ffmpeg normalization plus the whisper-cli invocation. |
 | `llm.py` | Subprocess plumbing shared by both post-processing stages. |
 | `correct.py` | Stage 1. Line-preserving error correction. |

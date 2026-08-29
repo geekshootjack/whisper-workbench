@@ -47,8 +47,8 @@ macOS `brew install whisper-cpp`; on Windows, download a prebuilt zip from the
 acceleration, note the official CUDA builds top out at the RTX 40 series; the
 50 series (Blackwell) needs a self-built binary with CUDA 12.8+.
 
-Then one command downloads the models (about 3 GB; falls back to the
-hf-mirror.com mirror when huggingface is unreachable, resumable):
+Then one command downloads the models (about 3 GB; uses the hf-mirror.com
+mirror by default, falls back to huggingface, resumable):
 
 ```sh
 wb setup      # models only, once per machine

@@ -284,7 +284,7 @@ def build_parser() -> argparse.ArgumentParser:
         "setup",
         help="下载 whisper 模型（whisper-cli 需另行安装）",
         description=(
-            "下载 whisper 模型到用户数据目录，自动在 huggingface 与镜像间回退。"
+            "下载 whisper 模型到用户数据目录，默认走国内镜像，失败自动回退 huggingface。"
             "whisper-cli 本体需已安装（如 brew install whisper-cpp，或设 WHISPER_CLI_PATH）。"
         ),
     )

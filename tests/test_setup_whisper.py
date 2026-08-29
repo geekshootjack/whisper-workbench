@@ -14,15 +14,15 @@ def test_model_urls_cover_both_mirrors() -> None:
     urls = setup_whisper.model_urls("large-v3")
 
     assert urls == [
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
         "https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
     ]
 
 
 def test_vad_urls_use_the_vad_repo() -> None:
     urls = setup_whisper.vad_model_urls()
 
-    assert urls[0].startswith("https://huggingface.co/ggml-org/whisper-vad/resolve/main/")
+    assert urls[0].startswith("https://hf-mirror.com/ggml-org/whisper-vad/resolve/main/")
     assert all(
         url.endswith(assets.model_file_name(assets.VAD_MODEL)) for url in urls
     )
@@ -63,7 +63,7 @@ def test_curl_failure_falls_back_to_the_mirror(
     setup_whisper._curl(setup_whisper.model_urls("large-v3"), destination)
 
     hosts = [url.split("//", 1)[1].split("/", 1)[0] for url in calls]
-    assert hosts == ["huggingface.co", "hf-mirror.com"]
+    assert hosts == ["hf-mirror.com", "huggingface.co"]
     assert destination.is_file()
 
 

@@ -17,7 +17,7 @@ audio ──▶ wb transcribe ──▶ meeting.txt ──▶ wb format ──�
 | --- | --- |
 | `cli.py` | argparse 参数面与人类可读/JSON 输出。 |
 | `assets.py` | 解析 whisper-cli、模型、VAD 模型路径的唯一入口。 |
-| `setup_whisper.py` | `wb setup`：下载模型到用户数据目录（huggingface.co 优先，hf-mirror.com 镜像回退，支持断点续传）。 |
+| `setup_whisper.py` | `wb setup`：下载模型到用户数据目录（默认 hf-mirror.com 镜像，huggingface.co 回退，支持断点续传）。 |
 | `transcribe.py` | ffmpeg 归一化加 whisper-cli 调用。 |
 | `llm.py` | 两个后处理阶段共用的子进程管道。 |
 | `correct.py` | 阶段一。保持行结构的错误校正。 |
