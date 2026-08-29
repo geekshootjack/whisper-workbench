@@ -80,6 +80,10 @@ uv run wb --help
 uv run pytest
 ```
 
+发版：打 `vX.Y.Z` tag 推送即自动出 GitHub Release（semver：破坏性改动升 MAJOR，新行为升 MINOR，其余 PATCH）。
+
+文档为双语对：`README.md`/`README.en.md`、`docs/architecture.md`/`docs/architecture.zh.md`，改动两侧同步。
+
 架构说明见 [docs/architecture.md](./docs/architecture.md)。
 
 ## License

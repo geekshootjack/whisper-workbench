@@ -86,6 +86,12 @@ uv run wb --help
 uv run pytest
 ```
 
+Releases: pushing a `vX.Y.Z` tag publishes a GitHub Release automatically
+(semver: MAJOR for breaking, MINOR for new behavior, PATCH otherwise).
+
+Docs are bilingual pairs — `README.md`/`README.en.md` and
+`docs/architecture.md`/`docs/architecture.zh.md`; update both sides in the
+same change.
 Architecture notes live in [docs/architecture.md](./docs/architecture.md).
 
 ## License
