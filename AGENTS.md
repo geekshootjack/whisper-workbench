@@ -20,9 +20,12 @@ Issue titles and bodies are Chinese. Commit messages are English.
 
 ## Documentation Rules
 
-- User-facing text is Chinese: `README.md` and every CLI help string.
-  Contributor-facing text is English: `AGENTS.md`, `docs/`, code comments,
-  docstrings, commit messages.
+- Bilingual pairs, equal authority: `README.md` (Chinese) with `README.en.md`,
+  `docs/architecture.md` (English) with `docs/architecture.zh.md`. The side
+  authored in a change is the source for that update; update both sides in the
+  same change, with the switcher right after the H1.
+- CLI help strings are Chinese. Contributor-facing text is English:
+  `AGENTS.md`, code comments, docstrings, commit messages.
 - One paragraph of Chinese prose is one line.
 - `README.md` stays short. Architecture notes live in `docs/`.
 - `wb --help` is the CLI reference; keep it teaching the full workflow on

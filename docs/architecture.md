@@ -1,7 +1,9 @@
+English | [中文](architecture.zh.md)
+
 # Architecture
 
 One CLI, `wb`, over a two-stage workflow that is deliberately splittable
-across machines.
+across machines:
 
 ```
 audio ──▶ wb transcribe ──▶ meeting.txt ──▶ wb format ──▶ meeting.corrected.txt
@@ -9,10 +11,8 @@ audio ──▶ wb transcribe ──▶ meeting.txt ──▶ wb format ──�
                             speech segment
 ```
 
-`wb transcribe` never invokes an LLM and never touches the network;
-`wb format` never touches audio. The handoff between them is a single `.txt`
-file, which is what lets transcription run on a machine with whisper.cpp
-while post-processing runs somewhere with an LLM CLI.
+`wb transcribe` never invokes an LLM and never touches the network; `wb
+format` never touches audio. The handoff is a single `.txt` file.
 
 ## Modules
 
@@ -27,75 +27,58 @@ while post-processing runs somewhere with an LLM CLI.
 | `compose.py` | Stage 2. Prose rewrite. |
 | `pipeline.py` | Output path derivation and stage sequencing for `wb format`. |
 
-## Why the two post-processing stages differ
+## Correction and composition
 
-They have opposite contracts, which is why they cannot be one pass.
+**Correction** preserves structure: N lines in, N lines out, same order. The
+model returns a *patch* — only the lines it wants to change, keyed by id — so
+a confused or truncated response can miss a correction but cannot drop, merge,
+or reorder lines. Independent chunks run concurrently.
 
-**Correction** must preserve structure: N lines in, N lines out, same order.
-The model is asked for a *patch* — only the lines it wants to change, keyed by
-id — rather than a rewritten document. A confused or truncated response can
-therefore fail to correct something, but it cannot drop, merge, or reorder
-transcript lines. Chunks run concurrently because they are independent.
+**Composition** breaks structure: recognition segments are neither sentences
+nor paragraphs. It runs as a single call by default because a topic's
+conclusion usually lands far after its opening, and splitting risks writing
+one topic up twice. The budget is measured in characters — segments run 8-16
+characters, so a line count says nothing about how much meeting a chunk holds
+— and the 60k default means splitting essentially never happens. When it does,
+chunks run sequentially, each receiving the previous chunk's output tail as
+read-only context, with a warning logged.
 
-**Composition** must break structure: recognition segments are neither
-sentences nor paragraphs.
+The output keeps the order topics came up in — no regrouping, no headings, no
+summary block. Condensing is expected; losing a topic is not, so an extreme
+drop in character count is logged as a warning.
 
-It also runs as a *single call* by default. Minutes need the whole arc of a
-topic — the conclusion usually lands far after the topic opens — so splitting
-risks writing one topic up twice, on either side of the seam. The threshold is
-measured in characters, not lines: recognition segments run 8-16 characters, so
-a line budget says almost nothing about how much meeting a chunk holds. A real
-938-line transcript is under 15k characters, and even a three-hour meeting
-lands around 40k, so the 60k default means splitting essentially never happens.
-When it does, chunks run sequentially, each receiving the tail of the previous
-chunk's output as read-only context, and a warning is logged.
+Deterministic guards run around the model output:
 
-The output is meeting minutes, not a cleaned-up verbatim transcript, but it
-keeps the order topics came up in — no regrouping, no headings, no summary
-block. Condensing is expected; losing a topic is not, so an extreme drop in
-character count is logged as a warning.
-
-Model output also passes a deterministic guard that demotes stray markdown
-headings and drops horizontal rules. LLM CLIs do not reliably obey "no
-headings", and enforcing it in code is free.
-
-The assembled document is then normalized as the last thing before it is
-written — once over the whole document, not per chunk, since chunk boundaries
-are not sentence boundaries. Models are inconsistent about punctuation width
-in Chinese prose, so this is enforced in code rather than asked for in the
-prompt. `autocorrect` does the bulk of it under its default rules, spacing
-included; that spacing is wanted in a document, unlike in subtitle lines.
+- Stray markdown headings are demoted and horizontal rules dropped; LLM CLIs
+  do not reliably obey "no headings", and enforcing it in code is free.
+- The document is normalized once over the whole text, as the last step before
+  it is written — chunk boundaries are not sentence boundaries. `autocorrect`
+  does the bulk of it; models are inconsistent about punctuation width in
+  Chinese prose, so this is enforced in code rather than asked for in the
+  prompt.
 
 Two things autocorrect will not do are handled around it:
 
-- **Quote direction.** It leaves quotes alone entirely, because it cannot tell
-  an opening quote from a closing one, an apostrophe, or an inch mark. The
-  quote pass sidesteps that by only rewriting *balanced pairs on a line
-  containing Chinese*, where the direction is unambiguous. An odd quote out is
-  left alone rather than guessed at, and single quotes are only touched when
-  they wrap Chinese, so English apostrophes survive.
+- **Quote direction.** autocorrect leaves quotes alone entirely. The quote
+  pass rewrites only *balanced pairs on a line containing Chinese*, where the
+  direction is unambiguous; an odd quote out is left alone, and single quotes
+  are only touched when they wrap Chinese, so English apostrophes survive.
 - **Punctuation after a quote.** autocorrect only widens punctuation preceded
-  by a *word* character; after a quote or bracket it declines on purpose, so
-  that code like `foo(),` survives. That leaves 看看”, half-width, and by then
-  autocorrect has already run, so it is widened afterwards — along with
-  dropping the space autocorrect had inserted before the following CJK, which
-  is wrong once the punctuation is full-width.
+  by a *word* character, so `看看”,` is still half-width after autocorrect has
+  run; a follow-up pass widens it and drops the space autocorrect inserted
+  before the following CJK, which is wrong once the punctuation is full-width.
 
-Half-width parentheses are deliberately left as they are; autocorrect spaces
-rather than widens them by design.
+Half-width parentheses are left as they are; autocorrect spaces rather than
+widens them by design.
 
 ## Segmentation
 
-whisper.cpp's VAD defaults are tuned for subtitles, where a short cue is a
-feature. For a transcript they are actively harmful: the 100 ms silence
-threshold splits on every breath and hesitation, so the raw output is full of
-lines like `但是` and `因为这个太`.
-
-Composition ignores line structure entirely, but correction does not — it
-works line by line, and a two-character line gives the model no context to
-judge whether anything is wrong. So the VAD is retuned to ride over hesitation
-pauses (`--vad-min-silence-duration-ms 700`), cap runaway segments
-(`--vad-max-speech-duration-s 30`, matching whisper's own window), and stop
+whisper.cpp VAD defaults are tuned for subtitles, where a short cue is a
+feature; for a transcript they split on every breath and hesitation, and
+correction — which works line by line — gets two-character lines that give the
+model no context to judge. The VAD is retuned: ride over hesitation pauses
+(`--vad-min-silence-duration-ms 700`), cap runaway segments
+(`--vad-max-speech-duration-s 30`, matching whisper's own window), stop
 clipping onsets (`--vad-speech-pad-ms 200`).
 
 `--split-on-word` was dropped: it only takes effect together with `--max-len`,
@@ -117,7 +100,7 @@ Neither stage is allowed to lose the transcript.
 ## Asset resolution
 
 `assets.py` resolves in this order, and both `wb setup` and `wb transcribe`
-go through it so their defaults cannot drift apart:
+go through it so their defaults cannot drift:
 
 1. `WHISPER_CLI_PATH` / `WHISPER_MODEL_PATH` / `WHISPER_VAD_MODEL_PATH`
 2. `whisper-cli` on `PATH` (covers `brew install whisper-cpp`)

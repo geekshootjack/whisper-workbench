@@ -1,5 +1,7 @@
 # whisper-workbench
 
+[English](README.en.md) | 中文
+
 把会议录音变成一份校正过、分好段的文档，用来喂给 agent 当上下文。
 
 分两步，两步可以在不同机器上跑：
