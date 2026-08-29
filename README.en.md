@@ -86,7 +86,6 @@ uv run wb --help
 uv run pytest
 ```
 
-
 Docs are bilingual pairs — `README.md`/`README.en.md` and
 `docs/architecture.md`/`docs/architecture.zh.md`; update both sides in the
 same change.

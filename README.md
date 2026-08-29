@@ -80,7 +80,6 @@ uv run wb --help
 uv run pytest
 ```
 
-
 文档为双语对：`README.md`/`README.en.md`、`docs/architecture.md`/`docs/architecture.zh.md`，改动两侧同步。
 
 架构说明见 [docs/architecture.md](./docs/architecture.md)。
