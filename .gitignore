@@ -6,6 +6,9 @@
 **/*__pycache__/
 usage/
 .ruff_cache/
+.pytest_cache/
 .venv
 test.ipynb
 vendor/
+data/
+dist/
