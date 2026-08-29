@@ -12,9 +12,9 @@ wb format meeting.txt         ->  meeting.corrected.txt    LLM 按行校正识�
 
 两步之间只需要传 `meeting.txt` 这一个文件。
 
-最终文档是一份会议纪要：按话题在录音里出现的先后顺序展开，一个话题一段，没有任何标题层级，也没有单独的摘要段。它会压缩表达，但论点、数据、决定和分歧都保留下来。校正稿会留在磁盘上，所以完整记录永远只隔一个文件。
+最终 `meeting.md` 按话题在录音中出现的先后顺序分段，没有标题层级和摘要段，论点、数据、决定和分歧保留；`meeting.corrected.txt` 留在磁盘上。
 
-写出文件前，整篇会过一遍 [autocorrect](https://github.com/huacnlee/autocorrect)，统一全半角标点、补上中英文之间的空格，再把成对的直角引号换成弯角引号——模型在这件事上不可靠，所以用确定性的方式做。
+写出文件前，整篇会过一遍 [autocorrect](https://github.com/huacnlee/autocorrect)，统一全半角标点、补上中英文之间的空格，再把成对的直角引号换成弯角引号。
 
 ## 安装
 
