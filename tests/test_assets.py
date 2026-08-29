@@ -61,8 +61,21 @@ def test_require_model_names_the_fix_in_its_error(monkeypatch) -> None:
 def test_require_whisper_cli_names_the_fix_in_its_error(monkeypatch) -> None:
     monkeypatch.setattr(assets, "find_whisper_cli", lambda: None)
 
-    with pytest.raises(FileNotFoundError, match="wb setup"):
+    with pytest.raises(FileNotFoundError, match="brew install whisper-cpp"):
         assets.require_whisper_cli()
+
+
+def test_setup_target_dir_is_searched_for_models(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    monkeypatch.delenv(assets.ENV_MODEL, raising=False)
+    monkeypatch.setattr(assets, "user_data_dir", lambda: tmp_path)
+    models_dir = tmp_path / "models"
+    models_dir.mkdir(parents=True)
+    model = models_dir / assets.model_file_name(assets.DEFAULT_MODEL)
+    model.write_bytes(b"x")
+
+    assert assets.find_model() == model
 
 
 def test_repo_checkout_dir_is_only_trusted_for_a_real_source_tree() -> None:

@@ -1,142 +1,103 @@
-"""One-time per-machine setup: clone, build, and populate whisper.cpp.
+"""Download the whisper models that ``wb transcribe`` needs.
 
-Everything is installed under :func:`assets.install_dir` rather than next to
-the source, so this keeps working when the tool is installed with
-``uv tool install`` and survives ``uv tool upgrade``.
+whisper.cpp itself is expected to come from the system — ``brew install
+whisper-cpp``, an official release zip, or ``WHISPER_CLI_PATH`` — so setup
+only fetches the ggml model and the VAD model into the user data dir.
 """
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 from pathlib import Path
 
 from whisper_workbench import assets
 
-WHISPER_CPP_REPO = "https://github.com/ggerganov/whisper.cpp.git"
+# huggingface.co first; hf-mirror.com is a path-identical mirror of it, used
+# as the fallback where HF is slow or unreachable.
+HOSTS = ("https://huggingface.co", "https://hf-mirror.com")
+MODEL_REPO = "ggerganov/whisper.cpp"
+VAD_REPO = "ggml-org/whisper-vad"
 
 
-def _run(cmd: list[str], cwd: Path | None = None) -> None:
-    try:
-        subprocess.run(cmd, check=True, cwd=str(cwd) if cwd else None)
-    except FileNotFoundError as exc:
+def model_urls(variant: str) -> list[str]:
+    """Return the download URLs for a ggml model, mirrors last."""
+    path = f"{MODEL_REPO}/resolve/main/{assets.model_file_name(variant)}"
+    return [f"{host}/{path}" for host in HOSTS]
+
+
+def vad_model_urls() -> list[str]:
+    """Return the download URLs for the VAD model, mirrors last."""
+    path = f"{VAD_REPO}/resolve/main/{assets.model_file_name(assets.VAD_MODEL)}"
+    return [f"{host}/{path}" for host in HOSTS]
+
+
+def _curl(urls: list[str], destination: Path) -> None:
+    """Download once per URL until one succeeds, resuming the partial file."""
+    curl = shutil.which("curl")
+    if curl is None:
         raise RuntimeError(
-            f"Required command not found: {cmd[0]}. Install it and ensure it is in PATH."
-        ) from exc
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError(
-            f"Command failed (exit {exc.returncode}): {' '.join(cmd)}. "
-            "See the output above for the root cause."
-        ) from exc
-
-
-def _load_cmake_cache(cache_path: Path) -> dict[str, str]:
-    entries: dict[str, str] = {}
-    if not cache_path.is_file():
-        return entries
-    for raw in cache_path.read_text(encoding="utf-8", errors="replace").splitlines():
-        line = raw.strip()
-        if not line or line.startswith(("//", "#")):
-            continue
-        key_with_type, sep, value = line.partition("=")
-        if not sep or ":" not in key_with_type:
-            continue
-        key, _, _type = key_with_type.partition(":")
-        entries[key] = value
-    return entries
-
-
-def _normalized(path: Path | str) -> str:
-    return os.path.normcase(os.path.normpath(str(Path(path).expanduser().resolve(strict=False))))
-
-
-def stale_cmake_cache_reason(source_dir: Path, build_dir: Path) -> str | None:
-    """Return why the CMake cache is stale, or None when it is usable.
-
-    A cache carried over from a different absolute path makes every
-    subsequent build fail, so it has to be detected and cleared.
-    """
-    entries = _load_cmake_cache(build_dir / "CMakeCache.txt")
-    if not entries:
-        return None
-
-    expected = {
-        "CMAKE_HOME_DIRECTORY": source_dir,
-        "CMAKE_CACHEFILE_DIR": build_dir,
-    }
-    mismatches = [
-        f"{key} cached={entries[key]} expected={path}"
-        for key, path in expected.items()
-        if entries.get(key) and _normalized(entries[key]) != _normalized(path)
-    ]
-    return "; ".join(mismatches) if mismatches else None
-
-
-def _prepare_build_dir(whisper_cpp_dir: Path) -> None:
-    build_dir = whisper_cpp_dir / "build"
-    reason = stale_cmake_cache_reason(whisper_cpp_dir, build_dir)
-    if reason is None:
-        return
-    print(f"==> Stale CMake cache detected ({reason})")
-    print(f"==> Removing {build_dir} and rebuilding")
-    shutil.rmtree(build_dir)
-
-
-def _download(script_stem: str, variant: str, models_dir: Path) -> None:
-    if os.name == "nt":
-        _run(["cmd", "/c", str(models_dir / f"{script_stem}.cmd"), variant], cwd=models_dir)
-    else:
-        _run([str(models_dir / f"{script_stem}.sh"), variant], cwd=models_dir)
-
-
-def run_setup(model: str = assets.DEFAULT_MODEL, update: bool = False) -> int:
-    """Clone/build whisper.cpp and download the model and VAD model."""
-    missing = [tool for tool in ("git", "cmake") if not shutil.which(tool)]
-    if missing:
-        raise RuntimeError(
-            f"Missing required command(s): {', '.join(missing)}. Install them first."
+            "curl not found. Install curl, or download the model manually to "
+            f"{destination}."
         )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    partial = destination.with_name(destination.name + ".part")
+    failed: list[str] = []
+    for url in urls:
+        result = subprocess.run(
+            [
+                curl,
+                "-L",
+                "--fail",
+                "--retry",
+                "3",
+                "--retry-delay",
+                "2",
+                "-C",
+                "-",
+                "--output",
+                str(partial),
+                url,
+            ]
+        )
+        if result.returncode == 0:
+            partial.replace(destination)
+            return
+        failed.append(url)
+    raise RuntimeError(
+        "Download failed from every mirror (" + "; ".join(failed) + "). "
+        f"The partial file is kept at {partial}; rerun `wb setup` to resume."
+    )
 
-    whisper_cpp_dir = assets.install_dir()
-    whisper_cpp_dir.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"==> Install directory: {whisper_cpp_dir}")
-    print(f"==> Model: {model}")
+def _fetch(urls: list[str], destination: Path, label: str) -> None:
+    if destination.is_file():
+        print(f"==> {label} already present: {destination.name}")
+        return
+    print(f"==> Downloading {label}: {destination.name}")
+    _curl(urls, destination)
 
-    if not whisper_cpp_dir.exists():
-        print("==> Cloning whisper.cpp")
-        _run(["git", "clone", WHISPER_CPP_REPO, str(whisper_cpp_dir)])
-    elif update:
-        print("==> Updating whisper.cpp")
-        _run(["git", "-C", str(whisper_cpp_dir), "pull"])
-    else:
-        print("==> whisper.cpp already present (pass --update to pull upstream)")
 
-    print("==> Building whisper.cpp")
-    _prepare_build_dir(whisper_cpp_dir)
-    _run(["cmake", "-B", "build"], cwd=whisper_cpp_dir)
-    _run(["cmake", "--build", "build", "--config", "Release"], cwd=whisper_cpp_dir)
-
-    models_dir = whisper_cpp_dir / "models"
-
+def run_setup(model: str = assets.DEFAULT_MODEL) -> int:
+    """Download the ggml model and the VAD model into the user data dir."""
+    models_dir = assets.user_data_dir() / "models"
     model_path = models_dir / assets.model_file_name(model)
-    if model_path.is_file():
-        print(f"==> Model already present: {model_path.name}")
-    else:
-        print(f"==> Downloading {model_path.name}")
-        _download("download-ggml-model", model, models_dir)
-
     vad_path = models_dir / assets.model_file_name(assets.VAD_MODEL)
-    if vad_path.is_file():
-        print(f"==> VAD model already present: {vad_path.name}")
-    else:
-        print(f"==> Downloading {vad_path.name}")
-        _download("download-vad-model", assets.VAD_MODEL, models_dir)
+
+    print(f"==> Models directory: {models_dir}")
+    print(f"==> Model: {model}")
+    _fetch(model_urls(model), model_path, "model")
+    _fetch(vad_model_urls(), vad_path, "VAD model")
 
     print("\n==> Setup complete\n")
-    print(f"whisper-cli: {assets.find_whisper_cli()}")
     print(f"model:       {model_path}")
     print(f"VAD model:   {vad_path}")
+    if assets.find_whisper_cli() is None:
+        print(
+            "\nwhisper-cli 未找到：wb setup 只下载模型，转录还需要 whisper.cpp。"
+            "\n  macOS:   brew install whisper-cpp"
+            "\n  Windows: 从 github.com/ggml-org/whisper.cpp/releases 下载预编译包，"
+            "把 whisper-cli.exe 放进 PATH（或设 WHISPER_CLI_PATH）"
+        )
     print("\nCheck the environment any time with: wb doctor")
     return 0

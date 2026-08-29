@@ -34,14 +34,12 @@ uvx --from git+https://github.com/geekshootjack/whisper-workbench wb transcribe 
 
 ## 每台机器第一次使用
 
-转录那台机器需要 `ffmpeg`、`git`、`cmake` 和一个 C++ 编译器，然后：
+转录那台机器需要 `ffmpeg` 和 whisper.cpp 的 `whisper-cli`：macOS 用 `brew install whisper-cpp`；Windows 从 whisper.cpp 的 GitHub releases 下载预编译包，把 `whisper-cli.exe` 放进 PATH（或用环境变量 `WHISPER_CLI_PATH` 指到它）。想用 NVIDIA 显卡加速要注意：官方预编译的 CUDA 包只到 RTX 40 系，50 系（Blackwell）需要用 CUDA 12.8+ 自行编译。
+然后一条命令下载模型（约 3GB，huggingface 不通畅时自动切国内镜像，支持断点续传）：
 
 ```sh
-wb setup      # 编译 whisper.cpp、下载模型，只需跑一次
+wb setup      # 只下载模型，每台机器跑一次
 ```
-
-如果已经用别的方式装了 whisper.cpp（比如 macOS 上 `brew install whisper-cpp`），`wb setup` 可以跳过——`whisper-cli` 在 PATH 上就会被直接使用。
-
 后处理那台机器需要 `claude` 或 `codex` 其中之一在 PATH 上。
 
 不确定这台机器能跑哪一步：

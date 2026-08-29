@@ -17,7 +17,7 @@ audio ──▶ wb transcribe ──▶ meeting.txt ──▶ wb format ──�
 | --- | --- |
 | `cli.py` | argparse 参数面与人类可读/JSON 输出。 |
 | `assets.py` | 解析 whisper-cli、模型、VAD 模型路径的唯一入口。 |
-| `setup_whisper.py` | `wb setup`：克隆、编译、下载到用户数据目录。 |
+| `setup_whisper.py` | `wb setup`：下载模型到用户数据目录（huggingface.co 优先，hf-mirror.com 镜像回退，支持断点续传）。 |
 | `transcribe.py` | ffmpeg 归一化加 whisper-cli 调用。 |
 | `llm.py` | 两个后处理阶段共用的子进程管道。 |
 | `correct.py` | 阶段一。保持行结构的错误校正。 |
@@ -64,8 +64,8 @@ whisper.cpp 的 VAD 默认值按字幕调优，短 cue 在字幕里是优点；�
 `assets.py` 按此顺序解析，`wb setup` 和 `wb transcribe` 都经过它，两边的默认值不会漂移：
 
 1. `WHISPER_CLI_PATH` / `WHISPER_MODEL_PATH` / `WHISPER_VAD_MODEL_PATH`
-2. `PATH` 上的 `whisper-cli`（覆盖 `brew install whisper-cpp`）
-3. 用户数据目录——`~/.local/share/whisper-workbench/` 或 `%LOCALAPPDATA%\whisper-workbench\`——即 `wb setup` 的安装位置
+2. `PATH` 上的 `whisper-cli`（覆盖 `brew install whisper-cpp` 和官方 release zip）
+3. 用户数据目录——`~/.local/share/whisper-workbench/` 或 `%LOCALAPPDATA%\whisper-workbench\`——`wb setup` 把模型下载到 `<目录>/models`；旧版 setup 构建的 `<目录>/whisper.cpp` 仍然有效
 4. `<repo>/vendor/whisper.cpp`，仅在从源码 checkout 运行时
 
-装进用户数据目录而不是源码旁边，`uv tool install` 才可行：相对 `__file__` 的路径会把 git 克隆和几个 GB 的模型塞进 `site-packages`。
+资产放在用户数据目录而不是源码旁边，`uv tool install` 才可行：相对 `__file__` 的路径会把几个 GB 的模型塞进 `site-packages`。

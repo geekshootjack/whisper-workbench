@@ -40,17 +40,19 @@ uvx --from git+https://github.com/geekshootjack/whisper-workbench wb transcribe 
 
 ## First Use Per Machine
 
-The transcribing machine needs `ffmpeg`, `git`, `cmake`, and a C++ compiler,
-then:
+The transcribing machine needs `ffmpeg` and a whisper.cpp `whisper-cli`: on
+macOS `brew install whisper-cpp`; on Windows, download a prebuilt zip from the
+[whisper.cpp releases](https://github.com/ggml-org/whisper.cpp/releases) and put
+`whisper-cli.exe` on `PATH` (or point `WHISPER_CLI_PATH` at it). For NVIDIA GPU
+acceleration, note the official CUDA builds top out at the RTX 40 series; the
+50 series (Blackwell) needs a self-built binary with CUDA 12.8+.
+
+Then one command downloads the models (about 3 GB; falls back to the
+hf-mirror.com mirror when huggingface is unreachable, resumable):
 
 ```sh
-wb setup      # builds whisper.cpp and downloads the models, once per machine
+wb setup      # models only, once per machine
 ```
-
-If whisper.cpp is already installed some other way (for example `brew install
-whisper-cpp` on macOS), `wb setup` can be skipped — a `whisper-cli` found on
-`PATH` is used directly.
-
 The post-processing machine needs `claude` or `codex` on `PATH`.
 
 Not sure what a given machine can run:

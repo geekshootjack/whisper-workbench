@@ -1,61 +1,79 @@
-"""Stale CMake cache detection.
-
-A build directory carried over from a different absolute path breaks every
-later build, so setup has to notice and clear it.
-"""
+"""Model download URLs and setup idempotency."""
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
-from whisper_workbench import setup_whisper
+import pytest
+
+from whisper_workbench import assets, setup_whisper
 
 
-def _write_cache(build_dir: Path, home: Path, cachefile_dir: Path) -> None:
-    build_dir.mkdir(parents=True, exist_ok=True)
-    (build_dir / "CMakeCache.txt").write_text(
-        "// comment line\n"
-        "# another comment\n"
-        f"CMAKE_HOME_DIRECTORY:INTERNAL={home}\n"
-        f"CMAKE_CACHEFILE_DIR:INTERNAL={cachefile_dir}\n"
-        "CMAKE_BUILD_TYPE:STRING=Release\n",
-        encoding="utf-8",
+def test_model_urls_cover_both_mirrors() -> None:
+    urls = setup_whisper.model_urls("large-v3")
+
+    assert urls == [
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
+        "https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
+    ]
+
+
+def test_vad_urls_use_the_vad_repo() -> None:
+    urls = setup_whisper.vad_model_urls()
+
+    assert urls[0].startswith("https://huggingface.co/ggml-org/whisper-vad/resolve/main/")
+    assert all(
+        url.endswith(assets.model_file_name(assets.VAD_MODEL)) for url in urls
     )
 
 
-def test_no_cache_is_not_stale(tmp_path: Path) -> None:
-    source = tmp_path / "whisper.cpp"
-    source.mkdir()
+def test_run_setup_skips_existing_models(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    (models_dir / assets.model_file_name(assets.DEFAULT_MODEL)).write_bytes(b"x")
+    (models_dir / assets.model_file_name(assets.VAD_MODEL)).write_bytes(b"x")
+    monkeypatch.setattr(assets, "user_data_dir", lambda: tmp_path)
 
-    assert setup_whisper.stale_cmake_cache_reason(source, source / "build") is None
+    def fail(_cmd: list[str], *_args: object, **_kwargs: object) -> None:
+        raise AssertionError("setup must not download when models exist")
 
+    monkeypatch.setattr(setup_whisper.subprocess, "run", fail)
 
-def test_matching_cache_is_not_stale(tmp_path: Path) -> None:
-    source = tmp_path / "whisper.cpp"
-    build = source / "build"
-    _write_cache(build, source, build)
-
-    assert setup_whisper.stale_cmake_cache_reason(source, build) is None
-
-
-def test_cache_from_another_path_is_stale(tmp_path: Path) -> None:
-    source = tmp_path / "whisper.cpp"
-    build = source / "build"
-    old = tmp_path / "elsewhere" / "whisper.cpp"
-    _write_cache(build, old, old / "build")
-
-    reason = setup_whisper.stale_cmake_cache_reason(source, build)
-
-    assert reason is not None
-    assert "CMAKE_HOME_DIRECTORY" in reason
+    assert setup_whisper.run_setup() == 0
 
 
-def test_unparsable_cache_lines_do_not_crash(tmp_path: Path) -> None:
-    source = tmp_path / "whisper.cpp"
-    build = source / "build"
-    build.mkdir(parents=True)
-    (build / "CMakeCache.txt").write_text(
-        "garbage without an equals sign\nNO_TYPE=value\n", encoding="utf-8"
+def test_curl_failure_falls_back_to_the_mirror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+
+    def fake_run(cmd: list[str], *_args: object, **_kwargs: object) -> subprocess.CompletedProcess:
+        calls.append(cmd[-1])
+        code = 0 if len(calls) == 2 else 1
+        if code == 0:
+            output = Path(cmd[cmd.index("--output") + 1])
+            output.write_bytes(b"x")
+        return subprocess.CompletedProcess(cmd, code)
+
+    monkeypatch.setattr(setup_whisper.shutil, "which", lambda name: "/usr/bin/curl")
+    monkeypatch.setattr(setup_whisper.subprocess, "run", fake_run)
+    destination = tmp_path / "m.bin"
+
+    setup_whisper._curl(setup_whisper.model_urls("large-v3"), destination)
+
+    hosts = [url.split("//", 1)[1].split("/", 1)[0] for url in calls]
+    assert hosts == ["huggingface.co", "hf-mirror.com"]
+    assert destination.is_file()
+
+
+def test_every_mirror_failing_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(setup_whisper.shutil, "which", lambda name: "curl")
+    monkeypatch.setattr(
+        setup_whisper.subprocess,
+        "run",
+        lambda cmd, *a, **k: subprocess.CompletedProcess(cmd, 22),
     )
 
-    assert setup_whisper.stale_cmake_cache_reason(source, build) is None
+    with pytest.raises(RuntimeError, match="every mirror"):
+        setup_whisper._curl(["https://a/x.bin", "https://b/x.bin"], tmp_path / "x.bin")

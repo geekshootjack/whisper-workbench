@@ -58,7 +58,7 @@ def test_stdout_and_json_are_mutually_exclusive() -> None:
 
 @pytest.mark.parametrize(
     "flag",
-    ["--skip-vad", "--vad-model", "--skip-update"],
+    ["--skip-vad", "--vad-model", "--skip-update", "--update"],
 )
 def test_retired_setup_flags_are_gone(flag: str) -> None:
     with pytest.raises(SystemExit):
@@ -84,7 +84,6 @@ def test_setup_defaults_are_idempotent() -> None:
     args = _parse(["setup"])
 
     assert args.model == assets.DEFAULT_MODEL
-    assert args.update is False
 
 
 def test_top_level_help_teaches_both_steps() -> None:

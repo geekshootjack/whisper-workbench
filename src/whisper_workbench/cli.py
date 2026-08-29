@@ -36,7 +36,7 @@ EPILOG = """\
 
 两步之间只需要传 meeting.txt 这一个文件。
 
-第一次在一台机器上使用，先跑 `wb setup`（只需一次）。
+第一次在一台机器上使用：装好 ffmpeg 与 whisper-cli（如 brew install whisper-cpp），再跑 `wb setup` 下载模型（只需一次）。
 不确定这台机器能跑哪一步时，跑 `wb doctor`。
 """
 
@@ -112,7 +112,7 @@ def _read_text_file(path: Path, label: str) -> str:
 
 
 def cmd_setup(args: argparse.Namespace) -> int:
-    return run_setup(model=args.model, update=args.update)
+    return run_setup(model=args.model)
 
 
 def cmd_transcribe(args: argparse.Namespace) -> int:
@@ -240,7 +240,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 },
                 "vad_model": str(vad_model) if vad_model else None,
                 "llm_backends": backends,
-                "install_dir": str(assets.install_dir()),
+                "models_dir": str(assets.user_data_dir() / "models"),
                 "can_transcribe": can_transcribe,
                 "can_format": can_format,
             }
@@ -256,7 +256,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             print(f"模型 {variant}{default_mark}  {status(path)}")
         print(f"VAD 模型      {status(vad_model)}")
         print(f"LLM CLI      {', '.join(backends) if backends else '缺失'}")
-        print(f"安装目录      {assets.install_dir()}")
+        print(f"模型目录      {assets.user_data_dir() / 'models'}")
         print()
         print(f"wb transcribe  {'可用' if can_transcribe else '不可用 —— 跑 wb setup'}")
         if can_transcribe and models[assets.DEFAULT_MODEL] is None:
@@ -282,8 +282,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     setup_parser = subparsers.add_parser(
         "setup",
-        help="下载并编译 whisper.cpp 和模型（每台机器跑一次）",
-        description="下载并编译 whisper.cpp 和模型。装到用户数据目录，每台机器跑一次。",
+        help="下载 whisper 模型（whisper-cli 需另行安装）",
+        description=(
+            "下载 whisper 模型到用户数据目录，自动在 huggingface 与镜像间回退。"
+            "whisper-cli 本体需已安装（如 brew install whisper-cpp，或设 WHISPER_CLI_PATH）。"
+        ),
     )
     setup_parser.add_argument(
         "-m",
@@ -291,11 +294,6 @@ def build_parser() -> argparse.ArgumentParser:
         choices=assets.MODEL_CHOICES,
         default=assets.DEFAULT_MODEL,
         help=f"下载哪个 whisper 模型（默认 {assets.DEFAULT_MODEL}）",
-    )
-    setup_parser.add_argument(
-        "--update",
-        action="store_true",
-        help="拉取上游 whisper.cpp 的最新代码并重新编译（默认不拉，重复跑是幂等的）",
     )
     setup_parser.set_defaults(func=cmd_setup)
 

@@ -89,7 +89,10 @@ def _search_roots() -> list[Path]:
 
 
 def _model_search_dirs() -> list[Path]:
-    dirs = [root / "models" for root in _search_roots()]
+    # user_data_dir()/models is where wb setup downloads; install_dir()/models
+    # is the layout older setups created and still counts.
+    dirs = [user_data_dir() / "models"]
+    dirs.extend(root / "models" for root in _search_roots())
     repo = _repo_checkout_dir()
     if repo is not None:
         dirs.append(repo / "models")
@@ -161,8 +164,10 @@ def require_whisper_cli() -> Path:
     path = find_whisper_cli()
     if path is None:
         raise FileNotFoundError(
-            "whisper-cli not found. Run `wb setup` to build whisper.cpp, "
-            f"or set {ENV_CLI} to an existing binary."
+            "whisper-cli not found. Install whisper.cpp (macOS: `brew install "
+            "whisper-cpp`; Windows: a release zip from "
+            "github.com/ggml-org/whisper.cpp/releases), put it on PATH, or set "
+            f"{ENV_CLI} to an existing binary."
         )
     if not path.is_file():
         raise FileNotFoundError(f"whisper-cli path does not exist: {path}")

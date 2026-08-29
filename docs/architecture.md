@@ -20,7 +20,7 @@ format` never touches audio. The handoff is a single `.txt` file.
 | --- | --- |
 | `cli.py` | argparse surface and the human/JSON output. |
 | `assets.py` | The one place that resolves whisper-cli, model, and VAD model paths. |
-| `setup_whisper.py` | `wb setup`: clone, build, download into the user data dir. |
+| `setup_whisper.py` | `wb setup`: download models into the user data dir (huggingface.co with hf-mirror.com fallback, resumable). |
 | `transcribe.py` | ffmpeg normalization plus the whisper-cli invocation. |
 | `llm.py` | Subprocess plumbing shared by both post-processing stages. |
 | `correct.py` | Stage 1. Line-preserving error correction. |
@@ -103,11 +103,13 @@ Neither stage is allowed to lose the transcript.
 go through it so their defaults cannot drift:
 
 1. `WHISPER_CLI_PATH` / `WHISPER_MODEL_PATH` / `WHISPER_VAD_MODEL_PATH`
-2. `whisper-cli` on `PATH` (covers `brew install whisper-cpp`)
+2. `whisper-cli` on `PATH` (covers `brew install whisper-cpp` and the official
+   release zips)
 3. the user data dir — `~/.local/share/whisper-workbench/` or
-   `%LOCALAPPDATA%\whisper-workbench\` — which is where `wb setup` installs
+   `%LOCALAPPDATA%\whisper-workbench\` — where `wb setup` downloads the models
+   to `<dir>/models`; `<dir>/whisper.cpp` from older setups still counts
 4. `<repo>/vendor/whisper.cpp`, only when running from a source checkout
 
-Installing into the user data dir rather than next to the source is what makes
-`uv tool install` viable: a `__file__`-relative path would put a git clone and
-multi-GB models inside `site-packages`.
+Assets live in the user data dir rather than next to the source so `uv tool
+install` stays viable: a `__file__`-relative path would put multi-GB models
+inside `site-packages`.
