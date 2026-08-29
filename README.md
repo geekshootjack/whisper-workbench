@@ -34,13 +34,12 @@ uvx --from git+https://github.com/geekshootjack/whisper-workbench wb transcribe 
 
 ## 前置要求
 
-转录那台机器需要 `ffmpeg` 和 `whisper-cli`（macOS 用 `brew install whisper-cpp`；Windows 从 whisper.cpp 的 GitHub releases 下载）。
+- 转录：`ffmpeg`、`whisper-cli`（[whisper.cpp](https://github.com/ggml-org/whisper.cpp)）
+- 后处理：`claude` 或 `codex`，在 PATH 上
 
 ```sh
 wb setup      # 下载模型，每台机器跑一次
 ```
-后处理那台机器需要 `claude` 或 `codex` 其中之一在 PATH 上。
-
 不确定这台机器能跑哪一步：
 
 ```sh

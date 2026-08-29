@@ -40,16 +40,13 @@ uvx --from git+https://github.com/geekshootjack/whisper-workbench wb transcribe 
 
 ## Prerequisites
 
-The transcribing machine needs `ffmpeg` and `whisper-cli` (macOS: `brew
-install whisper-cpp`; Windows: grab a build from
-[whisper.cpp releases](https://github.com/ggml-org/whisper.cpp/releases)).
+- Transcribing: `ffmpeg`, `whisper-cli` ([whisper.cpp](https://github.com/ggml-org/whisper.cpp))
+- Post-processing: `claude` or `codex`, on `PATH`
 
 
 ```sh
 wb setup      # downloads the models, once per machine
 ```
-The post-processing machine needs `claude` or `codex` on `PATH`.
-
 Not sure what a given machine can run:
 
 ```sh
