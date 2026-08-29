@@ -86,8 +86,7 @@ uv run wb --help
 uv run pytest
 ```
 
-Architecture notes live in [docs/architecture.md](./docs/architecture.md), the
-contribution process in [AGENTS.md](./AGENTS.md).
+Architecture notes live in [docs/architecture.md](./docs/architecture.md).
 
 ## License
 

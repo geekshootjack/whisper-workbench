@@ -80,7 +80,7 @@ uv run wb --help
 uv run pytest
 ```
 
-架构说明见 [docs/architecture.md](./docs/architecture.md)，协作流程见 [AGENTS.md](./AGENTS.md)。
+架构说明见 [docs/architecture.md](./docs/architecture.md)。
 
 ## License
 
