@@ -40,18 +40,13 @@ uvx --from git+https://github.com/geekshootjack/whisper-workbench wb transcribe 
 
 ## First Use Per Machine
 
-The transcribing machine needs `ffmpeg` and a whisper.cpp `whisper-cli`: on
-macOS `brew install whisper-cpp`; on Windows, download a prebuilt zip from the
-[whisper.cpp releases](https://github.com/ggml-org/whisper.cpp/releases) and put
-`whisper-cli.exe` on `PATH` (or point `WHISPER_CLI_PATH` at it). For NVIDIA GPU
-acceleration, note the official CUDA builds top out at the RTX 40 series; the
-50 series (Blackwell) needs a self-built binary with CUDA 12.8+.
+The transcribing machine needs `ffmpeg` and `whisper-cli` (macOS: `brew
+install whisper-cpp`; Windows: grab a build from
+[whisper.cpp releases](https://github.com/ggml-org/whisper.cpp/releases)).
 
-Then one command downloads the models (about 3 GB; uses the hf-mirror.com
-mirror by default, falls back to huggingface, resumable):
 
 ```sh
-wb setup      # models only, once per machine
+wb setup      # downloads the models, once per machine
 ```
 The post-processing machine needs `claude` or `codex` on `PATH`.
 
