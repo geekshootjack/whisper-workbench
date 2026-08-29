@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>代码库瘦身小故事</title>
+  <style>
+    :root { color-scheme: light; --ink: #203040; --blue: #4f8cff; --yellow: #ffd166; --green: #68c78b; --pink: #ff8fa3; --paper: #fffaf0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: #dff3ff; font-family: ui-rounded, "Nunito", "Segoe UI", sans-serif; line-height: 1.65; }
+    main { max-width: 980px; margin: 0 auto; padding: 28px 18px 56px; }
+    header, .panel, .decision { background: var(--paper); border: 4px solid var(--ink); border-radius: 28px; box-shadow: 8px 8px 0 rgba(32,48,64,.16); }
+    header { padding: 28px; text-align: center; }
+    h1 { margin: 0 0 8px; font-size: clamp(2rem, 6vw, 3.6rem); line-height: 1.1; }
+    h2 { margin-top: 0; font-size: 1.45rem; }
+    .subtitle { margin: 0; font-size: 1.08rem; }
+    .story { display: grid; gap: 22px; margin-top: 26px; }
+    .panel { display: grid; grid-template-columns: 170px 1fr; gap: 20px; align-items: center; padding: 20px; }
+    .art { display: grid; place-items: center; min-height: 140px; }
+    svg { width: 150px; height: 140px; overflow: visible; }
+    .panel p, .decision p { margin: 8px 0; }
+    .tag { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--yellow); border: 2px solid var(--ink); font-weight: 800; }
+    .decisions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 26px; }
+    .decision { padding: 18px; }
+    .decision h2 { font-size: 1.15rem; }
+    .decision.high { border-color: #b94a5d; }
+    .decision.medium { border-color: #b18000; }
+    .decision.low { border-color: #328152; }
+    code { padding: 2px 5px; border-radius: 6px; background: #e8eef7; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .92em; }
+    .footer { margin-top: 26px; padding: 16px 20px; background: #fff; border: 3px dashed var(--ink); border-radius: 20px; }
+    @media (max-width: 700px) { .panel { grid-template-columns: 1fr; text-align: center; } .panel p { text-align: left; } .decisions { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <svg role="img" aria-labelledby="title desc" viewBox="0 0 180 120">
+        <title id="title">一个装满物品的工具箱</title>
+        <desc id="desc">工具箱里有新工具和旧纸条，旁边有一个放大镜。</desc>
+        <rect x="25" y="48" width="130" height="58" rx="10" fill="#ff8fa3" stroke="#203040" stroke-width="5"/>
+        <path d="M55 48V35h70v13" fill="none" stroke="#203040" stroke-width="7" stroke-linecap="round"/>
+        <path d="M25 67h130" stroke="#203040" stroke-width="5"/>
+        <circle cx="145" cy="26" r="15" fill="#ffd166" stroke="#203040" stroke-width="5"/>
+        <path d="m156 37 13 13" stroke="#203040" stroke-width="7" stroke-linecap="round"/>
+        <circle cx="62" cy="84" r="8" fill="#68c78b" stroke="#203040" stroke-width="4"/>
+        <circle cx="91" cy="84" r="8" fill="#4f8cff" stroke="#203040" stroke-width="4"/>
+        <circle cx="120" cy="84" r="8" fill="#ffd166" stroke="#203040" stroke-width="4"/>
+      </svg>
+      <h1>代码库瘦身小故事</h1>
+      <p class="subtitle">我只做了检查，没有删除任何东西。你来决定哪些东西真的该留下。</p>
+    </header>
+
+    <section class="story" aria-label="审计故事">
+      <article class="panel">
+        <div class="art">
+          <svg role="img" aria-label="小人拿着放大镜检查工具箱" viewBox="0 0 150 140">
+            <circle cx="75" cy="34" r="21" fill="#ffd6a5" stroke="#203040" stroke-width="5"/>
+            <path d="M54 32q21-29 42 0" fill="#4f8cff" stroke="#203040" stroke-width="5"/>
+            <path d="M57 72q18-18 36 0v38H57z" fill="#68c78b" stroke="#203040" stroke-width="5"/>
+            <path d="M57 82 32 101M93 82l28-25" stroke="#203040" stroke-width="7" stroke-linecap="round"/>
+            <circle cx="128" cy="45" r="14" fill="#ffd166" stroke="#203040" stroke-width="5"/>
+            <path d="m138 56 10 11" stroke="#203040" stroke-width="6" stroke-linecap="round"/>
+            <path d="M68 110v20M82 110v20" stroke="#203040" stroke-width="7" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <span class="tag">第一步</span>
+          <h2>先找“没人用的玩具”</h2>
+          <p>代码库像一个工具箱。真正的 <code>wb</code> 主流程都有调用者，测试也能通过：<strong>101 个测试通过，ruff 检查通过</strong>。</p>
+          <p>所以我没有把核心的校正、改写、失败回退、资产查找删掉。它们虽然看起来复杂，但在保护录音不丢失。</p>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="art">
+          <svg role="img" aria-label="四个旧行李箱被放在角落" viewBox="0 0 150 140">
+            <rect x="18" y="45" width="50" height="66" rx="8" fill="#b9c2d0" stroke="#203040" stroke-width="5"/>
+            <path d="M32 45V30h22v15" fill="none" stroke="#203040" stroke-width="6"/>
+            <rect x="78" y="57" width="52" height="54" rx="8" fill="#c9d6b5" stroke="#203040" stroke-width="5"/>
+            <path d="M91 57V44h25v13" fill="none" stroke="#203040" stroke-width="6"/>
+            <path d="M22 82h42M82 85h44" stroke="#203040" stroke-width="4" stroke-dasharray="7 5"/>
+            <path d="M10 120h130" stroke="#203040" stroke-width="5" stroke-linecap="round"/>
+            <path d="m124 18 12 12m0-12-12 12" stroke="#b94a5d" stroke-width="5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <span class="tag">候选 A - 高把握</span>
+          <h2>删掉四个已经过时的包装纸</h2>
+          <p>这些文件一共 <strong>161 行、约 5.2 KB</strong>：<code>scripts/run.sh</code>、<code>scripts/test.sh</code>、<code>scripts/test_play.sh</code>、带日期的 <code>audio_trim_silence_260303_whisper.sh</code>。</p>
+          <p><code>run.sh</code> 还在调用不存在的 <code>uv run main</code> 和已经退休的参数；另外三个写死了旧电脑的绝对路径。仓库的代码、文档、CI 都没有调用它们。</p>
+          <p><strong>替代：</strong>什么也不加。日常使用直接用 <code>wb</code>；需要播放器可保留通用的 <code>play.sh</code>。</p>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="art">
+          <svg role="img" aria-label="一个有用的工具箱" viewBox="0 0 150 140">
+            <rect x="18" y="50" width="114" height="57" rx="10" fill="#ffd166" stroke="#203040" stroke-width="5"/>
+            <path d="M48 50V35h54v15" fill="none" stroke="#203040" stroke-width="7" stroke-linecap="round"/>
+            <path d="M18 69h114" stroke="#203040" stroke-width="5"/>
+            <path d="M42 87h20M88 87h20" stroke="#203040" stroke-width="7" stroke-linecap="round"/>
+            <path d="M18 119h114" stroke="#203040" stroke-width="5" stroke-linecap="round"/>
+            <circle cx="139" cy="31" r="8" fill="#68c78b" stroke="#203040" stroke-width="4"/>
+          </svg>
+        </div>
+        <div>
+          <span class="tag">候选 B - 请你决定</span>
+          <h2>四个独立小工具要不要搬走</h2>
+          <p><code>audio_trim_silence.py</code>、<code>detect_audio_segments_by_db.py</code>、<code>sync_subtitles.py</code>、<code>video_trim_ffmpeg.py</code> 都没有被主程序、文档或 CI 调用，也不会被打进安装包。</p>
+          <p>但它们是通用工具，不一定是垃圾；历史上的重构计划还明确写过“保留四个媒体工具”。</p>
+          <p><strong>如果仓库只负责 wb：</strong>可以删除，或移到单独的工具仓库。<strong>如果你还手工用它们：</strong>留下，并补一小段使用说明。</p>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="art">
+          <svg role="img" aria-label="一本被剪掉重复页的说明书" viewBox="0 0 150 140">
+            <path d="M20 27q27-12 55 5v83q-28-17-55-5z" fill="#fff" stroke="#203040" stroke-width="5"/>
+            <path d="M130 27q-27-12-55 5v83q28-17 55-5z" fill="#fff" stroke="#203040" stroke-width="5"/>
+            <path d="M34 48h28M34 62h28M88 48h28M88 62h28" stroke="#4f8cff" stroke-width="5" stroke-linecap="round"/>
+            <path d="M65 84h20" stroke="#ff8fa3" stroke-width="7" stroke-linecap="round"/>
+            <path d="m51 102 48-48" stroke="#b94a5d" stroke-width="6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <span class="tag">候选 C - 小幅瘦身</span>
+          <h2>说明书可以少写一点过程话</h2>
+          <p>两个 README 里的“双语文件要同步”是给维护者看的，不是用户运行 <code>wb</code> 必需的；可以删掉，保留顶部语言链接和架构链接。</p>
+          <p>架构文档也能把“为什么这样设计”的长解释压成直接规则，但要保留命令、默认值、失败回退和“不丢稿”的安全约束。</p>
+          <p>这会让说明书更短，但不会改变程序行为。</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="decisions" aria-label="决定卡片">
+      <article class="decision high">
+        <h2>我建议先选 A</h2>
+        <p>它们确定过时、没有调用者，删掉后不用替代品，风险最低。</p>
+      </article>
+      <article class="decision medium">
+        <h2>B 要看你的习惯</h2>
+        <p>你若手工用媒体工具，就别删；若从没用过，移走能让主仓库更清楚。</p>
+      </article>
+      <article class="decision low">
+        <h2>C 可以最后做</h2>
+        <p>它主要减少阅读负担，收益小于 A 和 B，不急。</p>
+      </article>
+    </section>
+
+    <div class="footer"><strong>一句话：</strong>先扔掉坏掉的旧包装纸；工具箱里的真正工具，先问主人再扔。</div>
+  </main>
+</body>
+</html>
